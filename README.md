@@ -15,7 +15,7 @@ The ultimate goal is to create a collection of useful components that can be app
 
 ##The Snapshots
 
-The project is broken up into subfolders contain snapshots of the development with accompainging documentation.
+The project is broken up into subfolders containing snapshots of the development with accompainging documentation.
 
 Current snapshots are: 
 

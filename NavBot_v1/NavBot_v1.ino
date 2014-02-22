@@ -22,7 +22,7 @@
 #define MOTOR_INFO      0
 #define BUTTON_INFO     0
 #define TEST_ENCODERS   0
-#define USE_PATHS       0
+#define USE_PATHS       1
 
 #define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
                        |USE_PATHS|BUTTON_INFO)
@@ -40,7 +40,7 @@
 #define WHEEL_BASE      nvMM(83.5)
 #define WHEEL_DIAMETER  nvMM(35.4)
 #define TICKS_PER_REV   1204
-#define ENCODER_BIAS    0.0f
+#define HEADING_BIAS    0.0f
 
 // Pilot heading PID controller coefficients
 #define Kp_HEADINGS     0.0f
@@ -123,12 +123,23 @@ PathState pth_state = PTH_DONE;
 #define PTH_MOVE        1
 #define PTH_TURN        2
 
-int16_t pathSequence[] = 
+int16_t squareSequence[] = 
 {
   PTH_MOVE, 600, PTH_TURN, 90, 
   PTH_MOVE, 600, PTH_TURN, 90, 
   PTH_MOVE, 600, PTH_TURN, 90, 
-  PTH_MOVE, 600, PTH_TURN, 90,
+  PTH_MOVE, 600,
+  PTH_MOVE, -600, PTH_TURN, -90, 
+  PTH_MOVE, -600, PTH_TURN, -90, 
+  PTH_MOVE, -600, PTH_TURN, -90, 
+  PTH_MOVE, -600,
+  PTH_END 
+};
+
+int16_t backForthSequence[] = 
+{
+  PTH_MOVE, 2000,
+  PTH_MOVE, -2000,
   PTH_END 
 };
 
@@ -159,7 +170,7 @@ void setup()
 
   // set up navigation
   navigator.Init( WHEEL_DIAMETER, WHEEL_BASE, TICKS_PER_REV );
-  navigator.SetEncoderBias( ENCODER_BIAS );
+  navigator.SetEncoderHeadingBias( HEADING_BIAS );
 
   // set up pilot
   pilot.SetNavigator( navigator );
@@ -196,7 +207,7 @@ void loop()
       pilot.Reset();
       #if USE_PATHS
         // set up path
-        init_path( pathSequence );
+        init_path( backForthSequence );
       #else
         pilot.Move(nvMETERS(3));
       #endif

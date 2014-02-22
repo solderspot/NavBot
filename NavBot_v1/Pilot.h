@@ -45,26 +45,26 @@ class Pilot
         void                SetNavigator( Navigator &nav ) { m_nav = &nav; }
         Navigator           *Navigator1( void ) { return m_nav; }
         void                SetTimeFunction( TimeFunction *func ) { m_time_func = func; }
-        void                SetTicksHandler( TicksHandler *handler, void *data = NULL) { m_ticks_handler = handler; m_ticks_handler_data = data; }
-        void                SetMotorHandler( MotorHandler *handler, void *data = NULL) { m_motor_handler = handler; m_motor_handler_data = data; }
+        void                SetTicksHandler( TicksHandler *handler, void *data = NULL ) { m_ticks_handler = handler; m_ticks_handler_data = data; }
+        void                SetMotorHandler( MotorHandler *handler, void *data = NULL ) { m_motor_handler = handler; m_motor_handler_data = data; }
         void                *TicksData( void ) { return m_ticks_handler_data; }
         void                *MotorData( void ) { return m_motor_handler_data; }
         void                SetMaxMoveSpeed( nvRate mm_per_second ) { m_max_move_speed = mm_per_second; }
         void                SetMaxTurnSpeed( nvRate degrees_per_second ) { m_max_turn_speed = degrees_per_second; }
-        void                SetMinUpdateInterval( nvTime interval ) { m_min_update_interval = interval; }
-        nvTime              MinUpdateInterval( void) { return m_min_update_interval; }
-        void                SetHeadingPID( float Kp, float Ki, float Kd) {}
-        void                SetSpeedPID( float Kp, float Ki, float Kd) {}
+        void                SetMinUpdateInterval( nvTime interval ) { m_min_update_interval = interval; m_hPID.minDelta = m_sPID.minDelta = (float)interval; }
+        nvTime              MinUpdateInterval( void ) { return m_min_update_interval; }
+        void                SetHeadingPID( float Kp, float Ki, float Kd ) { m_hPID.SetKs( Kp, Ki, Kd); }
+        void                SetSpeedPID( float Kp, float Ki, float Kd ) { m_sPID.SetKs( Kp, Ki, Kd); }
 
         // methods          
-        void                Reset();
+        void                Reset( void );
         void                Service( void );
         void                Stop( void );
         void                Move( nvDistance distance );
         void                Turn( nvHeading degrees );
         bool                IsDone( void ) { m_task == PLT_TASK_DONE; }
 
-    private:
+    protected:
 
         // external references
         Navigator           *m_nav;
@@ -84,11 +84,33 @@ class Pilot
         State               m_state;
         nvPosition          m_target_pos;
         nvHeading           m_target_heading;
+        nvTime              m_last_time;
 
         // motor control
         int16_t             m_lmotor;
         int16_t             m_rmotor;
 
+		// PID
+		struct PIDController
+		{
+			PIDController();
+
+			float 		Kp;
+			float 		Ki;
+			float 		Kd;
+			float		sumErrs;
+			float		lastErr;
+			float		minDelta;
+			float		CalcAdjustment( float error, nvTime dt );
+			void		Reset( void );
+			void 		SetKs( float p, float i, float d ) { Kp = p; Ki = i; Kd = d; }
+		};
+
+		PIDController		m_hPID;			// PID for heading control
+		PIDController		m_sPID;			// PID for speed control
+
+
+		nvTime 				getTime( void ) { return m_time_func(); }
 };
 
 #endif __PILOT_H
