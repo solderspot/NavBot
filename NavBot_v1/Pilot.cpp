@@ -4,6 +4,8 @@
 
 #include "Pilot.h"
 
+#include <Arduino.h>
+
 //----------------------------------------
 //
 //----------------------------------------
@@ -55,18 +57,27 @@ void    Pilot::Service( void )
 		return;
 	}
 
+
 	// first service the Navigator
 
 	int16_t lticks;
 	int16_t rticks;
 
 	if (!m_ticks_handler( this,  &lticks, &rticks ))
-        {
-          return;
-        }
+    {
+		return;
+    }
 
 	m_nav->UpdateTicks( lticks, rticks, now );
 
+
+	switch ( m_task )
+	{
+		case PLT_TASK_STOP:
+		Serial.println("stop");
+		m_task = PLT_TASK_DONE;
+		break;
+	}
 }
 
 //----------------------------------------
@@ -75,11 +86,6 @@ void    Pilot::Service( void )
 
 void    Pilot::Stop( void )
 {
-	if ( m_state == PLT_STATE_STOPPED )
-	{
-		return;
-	}
-
 	m_task = PLT_TASK_STOP;
 }
 

@@ -22,6 +22,7 @@
 #define MOTOR_INFO      0
 #define BUTTON_INFO     0
 #define TEST_ENCODERS   0
+#define NAV_INFO        1
 #define USE_PATHS       1
 
 #define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
@@ -204,9 +205,11 @@ void loop()
   {
     case INIT:
     {
+      Serial.println("Pilot.Reset()");
       pilot.Reset();
       #if USE_PATHS
         // set up path
+      Serial.println("init_path()");
         init_path( backForthSequence );
       #else
         pilot.Move(nvMETERS(3));
@@ -218,17 +221,24 @@ void loop()
     case RUNNING :
     {
       #if USE_PATHS
+      //Serial.println("update_path()");
         update_path();
       #endif
       break;
     }
     case WAITING :
     {
+      Serial.println("Waiting");
       break;
     }
   }
 
+  //Serial.println("Pilot.Service()");
   pilot.Service();
+
+  #if NAV_INFO
+    outputNavInfo();
+  #endif
 
 }
 
@@ -424,3 +434,54 @@ void pth_next()
       break;
   }
 }
+
+
+//----------------------------------------
+//
+//----------------------------------------
+
+#if NAV_INFO
+void outputNavInfo()
+{
+  static nvHeading lheading = nvDEGREES(1000);
+  static nvRate lspeed = nvMETERS(10);
+  static nvRate lturn = nvMETERS(10);
+  static nvDistance lx = nvMM(0);
+  static nvDistance ly = nvMM(0);
+
+  nvPose  pose = navigator.Pose();
+
+  if(  pose.heading != lheading )
+  {
+    Serial.print("Heading: ");
+    Serial.println( pose.heading );
+    lheading = pose.heading;
+  }
+
+  if(  pose.position.x != lx || pose.position.y != ly )
+  {
+    Serial.print("Position: (");
+    Serial.print( pose.position.x );
+    Serial.print(", ");
+    Serial.print( pose.position.y );
+    Serial.println(")");
+    lx = pose.position.x;
+    ly = pose.position.y;
+  }
+
+  if(  navigator.Speed() != lspeed )
+  {
+    Serial.print("Speed: ");
+    Serial.println( navigator.Speed() );
+    lspeed = navigator.Speed();
+  }
+
+  if(  navigator.TurnRate() != lturn )
+  {
+    Serial.print("Turn: ");
+    Serial.println( navigator.TurnRate() );
+    lturn = navigator.TurnRate();
+  }
+}
+
+#endif

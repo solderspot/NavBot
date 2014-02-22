@@ -62,7 +62,7 @@ class Pilot
         void                Stop( void );
         void                Move( nvDistance distance );
         void                Turn( nvHeading degrees );
-        bool                IsDone( void ) { m_task == PLT_TASK_DONE; }
+        bool                IsDone( void ) { return m_task == PLT_TASK_DONE; }
 
     protected:
 
