@@ -24,7 +24,7 @@ Navigator::Navigator()
 //
 //----------------------------------------
 
-void Navigator::Init( nvDistance wheel_diameter, nvDistance wheel_base, uint16_t ticks_per_rev )
+void Navigator::InitEncoder( nvDistance wheel_diameter, nvDistance wheel_base, uint16_t ticks_per_rev )
 {
     m_dist_per_tick = ticks_per_rev > 0 ? wheel_diameter*M_PI/ticks_per_rev : 0.0f;
     m_wheel_base = wheel_base > 1.0f ? wheel_base : 1.0f; 

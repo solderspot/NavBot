@@ -41,6 +41,7 @@ void    Pilot::Reset( void )
 	}
 	m_last_time = getTime();
 	m_nav->SetMinInterval( m_min_update_interval / 2);
+	m_nav->Reset(m_last_time);
 }
 
 //----------------------------------------

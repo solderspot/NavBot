@@ -8,6 +8,13 @@
 #include <stdint.h>
 #include <math.h>
 
+
+//----------------------------------------
+// Constants
+//----------------------------------------
+
+#define nvMAX_TIME	0xffffffff
+
 //----------------------------------------
 // Base Types
 //----------------------------------------
@@ -19,15 +26,6 @@ typedef nvDegrees   nvHeading;      // degrees from North
 typedef float       nvRate;         // change per second
 typedef float       nvDistance;     // millimeters
 typedef uint32_t    nvTime;         // time in milliseconds
-
-// Time delta function that handles wrapround
-#define nvMAX_TIME	0xffffffff
-inline nvTime 		nvDeltaTime( nvTime last, nvTime now)	{ return now >= last ?  now - last : nvMAX_TIME - last + now + 1; }
-// radians <-> degrees
-inline nvDegrees 	nvRadToDeg( nvRadians rad ) { return (rad*180.0f)/M_PI; }
-inline nvRadians	nvDegToRad( nvDegrees deg ) { return (deg*M_PI)/180.0f; }
-inline nvDegrees	nvClipDegrees( nvDegrees deg ) { return deg - ( ((int32_t)deg/360L)*360.0f); }
-inline nvRadians	nvClipRadians( nvRadians rad ) { return rad - ( ((int32_t)(rad/(2.0f*M_PI)))*2*M_PI); }
 
 //----------------------------------------
 // Helper Macros
@@ -48,6 +46,18 @@ inline nvRadians	nvClipRadians( nvRadians rad ) { return rad - ( ((int32_t)(rad/
 #define nvSOUTHWEST     nvDEGREES(225)
 #define nvWEST          nvDEGREES(270)
 #define nvNORTHWEST     nvDEGREES(315)
+
+//----------------------------------------
+// Helper Functions
+//----------------------------------------
+
+// Time delta function that handles wrapround
+inline nvTime 		nvDeltaTime( nvTime last, nvTime now)	{ return now >= last ?  now - last : nvMAX_TIME - last + now + 1; }
+// radians <-> degrees
+inline nvDegrees 	nvRadToDeg( nvRadians rad ) { return (rad*180.0f)/M_PI; }
+inline nvRadians	nvDegToRad( nvDegrees deg ) { return (deg*M_PI)/180.0f; }
+inline nvDegrees	nvClipDegrees( nvDegrees deg ) { deg -= ( ((int32_t)deg/360L)*360.0f); return deg < 0.00f ? deg + 360.0f : deg; }
+inline nvRadians	nvClipRadians( nvRadians rad ) { rad -= ( ((int32_t)(rad/(2.0f*M_PI)))*2*M_PI); return rad < 0.00f ? rad + 2.0f*M_PI : rad;}
 
 //----------------------------------------
 // nvPosition
@@ -80,7 +90,7 @@ class Navigator
         Navigator();
 
         // methods
-        void            Init( nvDistance wheel_diameter, nvDistance wheel_base, uint16_t ticks_per_revolution );
+        void            InitEncoder( nvDistance wheel_diameter, nvDistance wheel_base, uint16_t ticks_per_revolution );
         void            Reset( nvTime now );
         bool            UpdateTicks( int16_t lticks, int16_t rticks, nvTime now );
 

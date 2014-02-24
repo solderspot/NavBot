@@ -26,7 +26,8 @@
 #define USE_PATHS       1
 
 #define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
-                       |USE_PATHS|BUTTON_INFO)
+                       |USE_PATHS|BUTTON_INFO \
+                       |NAV_INFO)
 
 //----------------------------------------
 // Bot config
@@ -39,7 +40,7 @@
 
 // Navigator defines
 #define WHEEL_BASE      nvMM(83.5)
-#define WHEEL_DIAMETER  nvMM(35.4)
+#define WHEEL_DIAMETER  nvMM(38.9)
 #define TICKS_PER_REV   1204
 #define HEADING_BIAS    0.0f
 
@@ -170,7 +171,7 @@ void setup()
   setup_encoder();
 
   // set up navigation
-  navigator.Init( WHEEL_DIAMETER, WHEEL_BASE, TICKS_PER_REV );
+  navigator.InitEncoder( WHEEL_DIAMETER, WHEEL_BASE, TICKS_PER_REV );
   navigator.SetEncoderHeadingBias( HEADING_BIAS );
 
   // set up pilot
@@ -451,37 +452,29 @@ void outputNavInfo()
 
   nvPose  pose = navigator.Pose();
 
-  if(  pose.heading != lheading )
+  if(  pose.heading != lheading
+       || pose.position.x != lx
+       || pose.position.y != ly
+       || navigator.Speed() != lspeed
+       || navigator.TurnRate() != lturn )
   {
-    Serial.print("Heading: ");
-    Serial.println( pose.heading );
-    lheading = pose.heading;
-  }
-
-  if(  pose.position.x != lx || pose.position.y != ly )
-  {
-    Serial.print("Position: (");
+    Serial.print("Nav - x:");
     Serial.print( pose.position.x );
-    Serial.print(", ");
+    Serial.print(" y: ");
     Serial.print( pose.position.y );
-    Serial.println(")");
+    Serial.print(" h: ");
+    Serial.print( pose.heading );
+    Serial.print(" v: ");
+    Serial.print( navigator.Speed() );
+    Serial.print(" t: ");
+    Serial.println( navigator.TurnRate() );
+    lturn = navigator.TurnRate();
+    lspeed = navigator.Speed();
+    lheading = pose.heading;
     lx = pose.position.x;
     ly = pose.position.y;
   }
 
-  if(  navigator.Speed() != lspeed )
-  {
-    Serial.print("Speed: ");
-    Serial.println( navigator.Speed() );
-    lspeed = navigator.Speed();
-  }
-
-  if(  navigator.TurnRate() != lturn )
-  {
-    Serial.print("Turn: ");
-    Serial.println( navigator.TurnRate() );
-    lturn = navigator.TurnRate();
-  }
 }
 
 #endif
