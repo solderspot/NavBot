@@ -19,16 +19,18 @@
 
 #define SERIAL_BAUD   9600
 
-#define MOTOR_INFO      1
+#define MOTOR_INFO      0
 #define BUTTON_INFO     0
 #define TEST_ENCODERS   0
 #define NAV_INFO        0
 #define USE_PATHS       1
-#define TARGET_INFO     1
+#define TARGET_INFO     0
+#define MEM_REPORT      1
 
 #define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
                        |USE_PATHS|BUTTON_INFO \
-                       |NAV_INFO|TARGET_INFO)
+                       |NAV_INFO|TARGET_INFO \
+                       |MEM_REPORT)
 
 //----------------------------------------
 // Bot config
@@ -146,6 +148,7 @@ int16_t backForthSequence[] =
   PTH_END 
 };
 
+
 int16_t turningSequence[] = 
 {
   PTH_TURN, 180,
@@ -172,7 +175,7 @@ void setup()
 
   #if USE_SERIAL
   Serial.begin(SERIAL_BAUD);
-  Serial.println("NavBot V1!");
+  Serial.println(F("NavBot V1!"));
   #endif
   
   pinMode(buttonPin, INPUT);
@@ -195,6 +198,13 @@ void setup()
   pilot.SetHeadingPID( Kp_HEADINGS, Ki_HEADINGS, Kd_HEADINGS);
   pilot.SetSpeedPID( Kp_SPEED, Ki_SPEED, Kd_SPEED);
 
+  #if MEM_REPORT
+  memReport();
+  Serial.print(F("Navigator: "));
+  Serial.print(sizeof(navigator));
+  Serial.print(F(" Pilot: "));
+  Serial.println(sizeof(pilot));
+  #endif
 }
 
 //----------------------------------------
@@ -241,7 +251,7 @@ void loop()
     }
   }
 
-  //Serial.println("Pilot.Service()");
+  //Serial.println(F("Pilot.Service()"));
   pilot.Service();
 
   #if NAV_INFO
@@ -279,7 +289,7 @@ void handleButtonPress(void)
       if( button == LOW )
       {
         #if BUTTON_INFO
-          Serial.println("Button Pressed");
+          Serial.println(F("Button Pressed"));
         #endif
         if( pushToStart )
         {
@@ -312,11 +322,11 @@ void handleButtonPress(void)
     
     if( lastlTotal != lTotal || lastrTotal != rTotal )
     {
-      Serial.print("Encoders: lft = ");
+      Serial.print(F("Encoders: lft = "));
       Serial.print(lTotal);
-      Serial.print(" rht = ");
+      Serial.print(F(" rht = "));
       Serial.print(rTotal);
-      Serial.println( !ok ? " (error)" :"");
+      Serial.println(!ok ? F(" (error)") :F(""));
       lastlTotal = lTotal;
       lastrTotal = rTotal;
     }
@@ -348,11 +358,11 @@ void motor_handler( Pilot *pilot, int16_t lmotor, int16_t rmotor)
   #endif
 
   #if MOTOR_INFO
-  Serial.print("LeftMotor: ");
+  Serial.print(F("LeftMotor: "));
   Serial.print(lspeed);
-  Serial.print(" (");
+  Serial.print(F(" ("));
   Serial.print(lmotor);
-  Serial.println(")");
+  Serial.println(F(")"));
   #endif
 
   #if SWAP_MOTORS
@@ -362,11 +372,11 @@ void motor_handler( Pilot *pilot, int16_t lmotor, int16_t rmotor)
   #endif
 
   #if MOTOR_INFO
-  Serial.print("RightMotor: ");
+  Serial.print(F("RightMotor: "));
   Serial.print(rspeed);
-  Serial.print(" (");
+  Serial.print(F(" ("));
   Serial.print(rmotor);
-  Serial.println(")");
+  Serial.println(F(")"));
   #endif
  
 }
@@ -402,7 +412,9 @@ void update_path()
     case PTH_WAITING:
       if( pilot.IsDone() && !navigator.InMotion())
       {
+         #if TARGET_INFO
          printNavInfo();
+         #endif
          pth_next();
       }
       break;
@@ -480,20 +492,37 @@ void outputNavInfo()
 #endif
 
 #if NAV_INFO || TARGET_INFO
-void printNavInfo()
+void printNavInfo( void )
 {
     nvPose pose = navigator.Pose();
-    Serial.print("Nav - x:");
+    Serial.print(F("Nav - x:"));
     Serial.print( pose.position.x );
-    Serial.print(" y: ");
+    Serial.print(F(" y: "));
     Serial.print( pose.position.y );
-    Serial.print(" h: ");
+    Serial.print(F(" h: "));
     Serial.print( pose.heading );
-    Serial.print(" v: ");
+    Serial.print(F(" v: "));
     Serial.print( navigator.Speed() );
-    Serial.print(" t: ");
+    Serial.print(F(" t: "));
     Serial.println( navigator.TurnRate() );
 
 }
+#endif
+
+#if MEM_REPORT
+void memReport( void )
+{
+    int stack;
+    extern int __bss_start;
+    extern int __data_start;
+    extern int __heap_start;
+    extern void *__brkval;
+    Serial.print(F("SRAM: data - "));
+    Serial.print(((uint16_t)&__bss_start) - ((uint16_t)&__data_start));
+    Serial.print(F(" bss - "));
+    Serial.print(((uint16_t)&__heap_start) - ((uint16_t)&__bss_start));
+    Serial.print(F(" free - "));
+    Serial.println( ((uint16_t)&stack) - (__brkval!=0 ? ((uint16_t)__brkval) : ((uint16_t)&__heap_start)));
+}               
 #endif
 

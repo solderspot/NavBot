@@ -38,7 +38,7 @@ m_was_in_motion(false)
 void    Pilot::Reset( void )
 {
 	// ensure we are at a complete stop
-	Serial.println("Pilot::Reset");
+	//Serial.println(F("Pilot::Reset"));
 	Stop();
 	while ( !IsDone() )
 	{
@@ -64,7 +64,7 @@ void    Pilot::Service( void )
 	{
 		return;
 	}
-	//Serial.println("Pilot::Service");
+	//Serial.println(F("Pilot::Service"));
 
 	// first service the Navigator
 	{
@@ -83,7 +83,7 @@ void    Pilot::Service( void )
 	{
 		// we just started moving
 		m_mp_start - m_mpower;
-		m_was_in_motion = ture;
+		m_was_in_motion = true;
 	}
 
 	if ( m_state == PLT_STATE_STOPPING)
@@ -92,7 +92,7 @@ void    Pilot::Service( void )
 		// any tasks until stopping has completed
 		if ( m_nav->InMotion())
 		{
-			adjust_speed( -10 );
+			adjust_mpower( -10 );
 			m_mp_stop = m_mpower;
 			// need to wait
 			return;
@@ -180,8 +180,8 @@ void    Pilot::Service( void )
 void Pilot::update_turn( void )
 {
 	nvDegrees dh = m_nav->HeadingAdjust( m_target_heading );
-	Serial.print("Pilot::update_turn - dh = ");
-	Serial.println( dh );
+	//Serial.print(F("Pilot::update_turn - dh = "));
+	//Serial.println( dh );
 	nvRate turning = m_nav->TurnRate();
 	int16_t dir = dh < 0.0f ? -1 : 1;
 	nvDegrees adh = dh < 0.0f ? dh*-1.0f : dh;
@@ -213,7 +213,7 @@ void Pilot::update_turn( void )
 		nvRate max_rate = adh < 20.0f ? nvDEGREES(20) : adh < 40.0f ? nvDEGREES(30) : nvDEGREES( 45);
 		m_tPID.SetTarget( max_rate );
 		float adjust = m_tPID.CalcAdjustment( turning, m_dt );
-		adjust_speed( (int16_t) adjust );
+		adjust_mpower( (int16_t) adjust );
 	}
 	else
 	{
@@ -237,7 +237,7 @@ void Pilot::update_move( void )
 
 void    Pilot::full_stop( void )
 {
-	adjust_speed( -10 );
+	adjust_mpower( -10 );
 	m_state = PLT_STATE_STOPPING;
 	m_end_task_on_stop = false;
 }
@@ -271,12 +271,12 @@ void    Pilot::Move( nvDistance distance )
 
 void    Pilot::Turn( nvHeading degrees )
 {
-	Serial.print("Pilot::Turn(");
-	Serial.print(degrees);
-	Serial.print(") -> ");
+	//Serial.print(F("Pilot::Turn("));
+	//Serial.print(degrees);
+	//Serial.print(F(") -> "));
 	m_task = PLT_TASK_TURN;
 	m_target_heading = nvClipHeading( m_target_heading + degrees);
-	Serial.println(m_target_heading);
+	//Serial.println(m_target_heading);
 }
 
 //----------------------------------------
