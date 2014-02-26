@@ -19,15 +19,16 @@
 
 #define SERIAL_BAUD   9600
 
-#define MOTOR_INFO      0
+#define MOTOR_INFO      1
 #define BUTTON_INFO     0
 #define TEST_ENCODERS   0
-#define NAV_INFO        1
+#define NAV_INFO        0
 #define USE_PATHS       1
+#define TARGET_INFO     1
 
 #define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
                        |USE_PATHS|BUTTON_INFO \
-                       |NAV_INFO)
+                       |NAV_INFO|TARGET_INFO)
 
 //----------------------------------------
 // Bot config
@@ -35,11 +36,11 @@
 
 // motors
 #define SWAP_MOTORS       0
-#define RMOTOR_DIR        -1    // -1 to reverse, 1 for normal
-#define LMOTOR_DIR        1     // -1 to reverse, 1 for normal
+#define RMOTOR_DIR        -1L    // -1 to reverse, 1 for normal
+#define LMOTOR_DIR        1L     // -1 to reverse, 1 for normal
 
 // Navigator defines
-#define WHEEL_BASE      nvMM(83.5)
+#define WHEEL_BASE      nvMM(108.0)
 #define WHEEL_DIAMETER  nvMM(38.9)
 #define TICKS_PER_REV   1204
 #define HEADING_BIAS    0.0f
@@ -79,7 +80,7 @@ char buttonPin  = 12;
 // Value is as a percentage, i.e. 110 means left
 // motor will be 10% faster than the right. 90
 // would mean the left motor is 10% slower
-#define LMOTOR_GAIN       100
+#define LMOTOR_GAIN       100L
 bool pushToStart        = true;
 
 
@@ -145,6 +146,16 @@ int16_t backForthSequence[] =
   PTH_END 
 };
 
+int16_t turningSequence[] = 
+{
+  PTH_TURN, 180,
+  PTH_TURN, -180,
+  PTH_TURN, -90,
+  PTH_TURN, -90,
+  PTH_TURN, -90,
+  PTH_TURN, -90,
+  PTH_END 
+};
 //----------------------------------------
 // Forward reference
 //----------------------------------------
@@ -206,12 +217,10 @@ void loop()
   {
     case INIT:
     {
-      Serial.println("Pilot.Reset()");
       pilot.Reset();
       #if USE_PATHS
         // set up path
-      Serial.println("init_path()");
-        init_path( backForthSequence );
+        init_path( turningSequence );
       #else
         pilot.Move(nvMETERS(3));
       #endif
@@ -222,14 +231,12 @@ void loop()
     case RUNNING :
     {
       #if USE_PATHS
-      //Serial.println("update_path()");
         update_path();
       #endif
       break;
     }
     case WAITING :
     {
-      Serial.println("Waiting");
       break;
     }
   }
@@ -247,6 +254,10 @@ void stop()
 {
   pushToStart = true;
   pilot.Stop();
+  while ( !pilot.IsDone() )
+  {
+    pilot.Service();
+  }
   state = INIT;
 }
 
@@ -327,12 +338,9 @@ void motor_handler( Pilot *pilot, int16_t lmotor, int16_t rmotor)
   // see how well PID can correct the motor
   // imbalance
 
-  int16_t lspeed = ((lmotor*LMOTOR_GAIN)/100)*LMOTOR_DIR;
-  int16_t rspeed = (rmotor)*RMOTOR_DIR;
+  int16_t lspeed = ((lmotor*400L)/1024L)*LMOTOR_DIR;
+  int16_t rspeed = ((rmotor*400L)/1024L)*RMOTOR_DIR;
   
-  lspeed = map( lspeed, -1024, 1024, -400, 400); 
-  lspeed = map( rspeed, -1024, 1024, -400, 400); 
-
   #if SWAP_MOTORS
     motors.setLeftSpeed( lspeed );
   #else
@@ -392,8 +400,9 @@ void update_path()
   switch (pth_state)
   {
     case PTH_WAITING:
-      if( pilot.IsDone())
+      if( pilot.IsDone() && !navigator.InMotion())
       {
+         printNavInfo();
          pth_next();
       }
       break;
@@ -425,7 +434,7 @@ void pth_next()
       pth_state = PTH_WAITING;
       break;
     case PTH_TURN:
-      pilot.Turn( *pth_sequence++);
+      pilot.Turn( nvDEGREES(*pth_sequence++));
       pth_state = PTH_WAITING;
       break;
     default:
@@ -441,7 +450,7 @@ void pth_next()
 //
 //----------------------------------------
 
-#if NAV_INFO
+#if NAV_INFO 
 void outputNavInfo()
 {
   static nvHeading lheading = nvDEGREES(1000);
@@ -458,16 +467,7 @@ void outputNavInfo()
        || navigator.Speed() != lspeed
        || navigator.TurnRate() != lturn )
   {
-    Serial.print("Nav - x:");
-    Serial.print( pose.position.x );
-    Serial.print(" y: ");
-    Serial.print( pose.position.y );
-    Serial.print(" h: ");
-    Serial.print( pose.heading );
-    Serial.print(" v: ");
-    Serial.print( navigator.Speed() );
-    Serial.print(" t: ");
-    Serial.println( navigator.TurnRate() );
+    printNavInfo();
     lturn = navigator.TurnRate();
     lspeed = navigator.Speed();
     lheading = pose.heading;
@@ -478,3 +478,22 @@ void outputNavInfo()
 }
 
 #endif
+
+#if NAV_INFO || TARGET_INFO
+void printNavInfo()
+{
+    nvPose pose = navigator.Pose();
+    Serial.print("Nav - x:");
+    Serial.print( pose.position.x );
+    Serial.print(" y: ");
+    Serial.print( pose.position.y );
+    Serial.print(" h: ");
+    Serial.print( pose.heading );
+    Serial.print(" v: ");
+    Serial.print( navigator.Speed() );
+    Serial.print(" t: ");
+    Serial.println( navigator.TurnRate() );
+
+}
+#endif
+

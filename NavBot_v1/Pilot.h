@@ -27,6 +27,7 @@ class Pilot
 
         enum Task
         {
+            PLT_TASK_NONE,
             PLT_TASK_DONE,
             PLT_TASK_TURN,
             PLT_TASK_MOVE,
@@ -43,7 +44,7 @@ class Pilot
 
         // setters and getters
         void                SetNavigator( Navigator &nav ) { m_nav = &nav; }
-        Navigator           *Navigator1( void ) { return m_nav; }
+        Navigator           *GetNavigator( void ) { return m_nav; }
         void                SetTimeFunction( TimeFunction *func ) { m_time_func = func; }
         void                SetTicksHandler( TicksHandler *handler, void *data = NULL ) { m_ticks_handler = handler; m_ticks_handler_data = data; }
         void                SetMotorHandler( MotorHandler *handler, void *data = NULL ) { m_motor_handler = handler; m_motor_handler_data = data; }
@@ -84,11 +85,27 @@ class Pilot
         State               m_state;
         nvPosition          m_target_pos;
         nvHeading           m_target_heading;
+        nvDistance          m_target_dist;
         nvTime              m_last_time;
+		nvTime				m_dt;
+		bool				m_end_task_on_stop;
 
         // motor control
-        int16_t             m_lmotor;
-        int16_t             m_rmotor;
+        int16_t             m_mpower;
+		int16_t             m_ladjust;
+		int16_t             m_radjust;
+        int16_t             m_ldir;
+        int16_t             m_rdir;
+		int16_t				m_mp_start;			// power level that motors will start movement 
+		int16_t 			m_mp_stop;			// power level at which motors will stop movement
+		bool				m_was_in_motion;	// detect start and stop of movement
+
+		void				update_motors( void );
+		void				adjust_mpower( int16_t );
+        void                full_stop( void );
+        void                update_turn( void );
+        void                update_move( void );
+
 
 		// PID
 		struct PIDController
@@ -101,13 +118,16 @@ class Pilot
 			float		sumErrs;
 			float		lastErr;
 			float		minDelta;
-			float		CalcAdjustment( float error, nvTime dt );
+			float		target;
+			float		CalcAdjustment( float input, nvTime dt );
 			void		Reset( void );
+			void		SetTarget( float t ) { target = t;}
 			void 		SetKs( float p, float i, float d ) { Kp = p; Ki = i; Kd = d; }
 		};
 
 		PIDController		m_hPID;			// PID for heading control
 		PIDController		m_sPID;			// PID for speed control
+		PIDController		m_tPID;			// PID for turn control
 
 
 		nvTime 				getTime( void ) { return m_time_func(); }

@@ -56,7 +56,8 @@ inline nvTime 		nvDeltaTime( nvTime last, nvTime now)	{ return now >= last ?  no
 // radians <-> degrees
 inline nvDegrees 	nvRadToDeg( nvRadians rad ) { return (rad*180.0f)/M_PI; }
 inline nvRadians	nvDegToRad( nvDegrees deg ) { return (deg*M_PI)/180.0f; }
-inline nvDegrees	nvClipDegrees( nvDegrees deg ) { deg -= ( ((int32_t)deg/360L)*360.0f); return deg < 0.00f ? deg + 360.0f : deg; }
+inline nvDegrees	nvClipDegrees( nvDegrees deg ) { return deg - ( ((int32_t)deg/360L)*360.0f); }
+inline nvDegrees	nvClipHeading( nvDegrees deg ) { deg = nvClipDegrees(deg); return deg < 0.00f ? deg + 360.0f : deg; }
 inline nvRadians	nvClipRadians( nvRadians rad ) { rad -= ( ((int32_t)(rad/(2.0f*M_PI)))*2*M_PI); return rad < 0.00f ? rad + 2.0f*M_PI : rad;}
 
 //----------------------------------------
@@ -101,17 +102,22 @@ class Navigator
         nvRate          Speed( void ) { return m_speed; }
         nvRate          TurnRate( void ) { return m_turn_rate; }
         float           TicksHeadingBias( void ) { return m_encoder_heading_bias; }
+		bool			IsMoving( void ) { return m_speed != 0.0f; }
+		bool			IsTurning( void ) { return m_turn_rate != 0.0f; }
+		bool			InMotion( void ) { return IsMoving() || IsTurning(); }
+		void			GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance );
 
 		// setters
-		void            SetStartPose( const nvPose &pose) { m_init_pose.position = pose.position; m_init_pose.heading = nvClipDegrees( pose.heading); }
+		void            SetStartPose( const nvPose &pose) { m_init_pose.position = pose.position; m_init_pose.heading = nvClipHeading( pose.heading); }
 		void            SetStartPosition( const nvPosition &pos) { m_init_pose.position = pos; }
 		void            SetStartPosition( nvCoord x, nvCoord y) { m_init_pose.position.x = x; m_init_pose.position.y = y; }
-		void            SetStartHeading( nvHeading heading ) { m_init_pose.heading = nvClipDegrees(heading); }
+		void            SetStartHeading( nvHeading heading ) { m_init_pose.heading = nvClipHeading(heading); }
 		void            SetEncoderHeadingBias( float bias) { m_encoder_heading_bias = bias; }
 		void			SetMinInterval( nvTime min ) { m_min_dt = min; }
 
 		// helpers
 		nvPosition		NewPosition( nvDistance distance );	
+                nvDegrees                HeadingAdjust( nvHeading target ); 
 
     protected:
 

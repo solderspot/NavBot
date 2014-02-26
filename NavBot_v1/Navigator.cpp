@@ -106,3 +106,36 @@ nvPosition Navigator::NewPosition( nvDistance distance )
 	return pos;
 }
 
+//----------------------------------------
+//
+//----------------------------------------
+
+void Navigator::GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance )
+{
+
+	nvDistance dx = pos.x - m_pose.position.x;
+	nvDistance dy = pos.y - m_pose.position.y;
+
+	*distance = sqrt( dx*dx + dy*dy );
+	*heading = nvRadToDeg(atan2(dx, dy)+M_PI);
+}
+
+//----------------------------------------
+//
+//----------------------------------------
+
+nvDegrees Navigator::HeadingAdjust( nvHeading target )
+{
+	nvDegrees adjust = nvClipDegrees(target - m_pose.heading);
+	if (adjust < -180.0f)
+	{
+		return adjust + 360.0f;
+	}
+	else if ( adjust > 180.0f )
+	{
+		return adjust - 360.0f;
+	}
+	return adjust; 
+}
+
+
