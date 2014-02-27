@@ -57,6 +57,11 @@
 #define Ki_SPEED        0.0f
 #define Kd_SPEED        0.0f
 
+// Pilot turn PID controller coefficients
+#define Kp_TURN        0.0f
+#define Ki_TURN        0.0f
+#define Kd_TURN        0.0f
+
 
 //----------------------------------------
 // Defines
@@ -191,19 +196,24 @@ void setup()
   // set up pilot
   pilot.SetNavigator( navigator );
   pilot.SetTimeFunction( millis );
-  pilot.SetMaxMoveSpeed( nvMM(30));
-  pilot.SetMaxTurnSpeed( nvDEGREES(120) );
   pilot.SetTicksHandler( ticks_handler );
   pilot.SetMotorHandler( motor_handler );
   pilot.SetHeadingPID( Kp_HEADINGS, Ki_HEADINGS, Kd_HEADINGS);
   pilot.SetSpeedPID( Kp_SPEED, Ki_SPEED, Kd_SPEED);
+  pilot.SetTurnPID( Kp_TURN, Ki_TURN, Kd_TURN);
+  pilot.SetMinMoveSpeed( nvMM(10));
+  pilot.SetMaxMoveSpeed( nvMM(30));
+  pilot.SetMinTurnSpeed( nvDEGREES(10) );
+  pilot.SetMaxTurnSpeed( nvDEGREES(45) );
+  pilot.SetMinServiceInterval( nvMS(20) );
 
   #if MEM_REPORT
   memReport();
   Serial.print(F("Navigator: "));
   Serial.print(sizeof(navigator));
-  Serial.print(F(" Pilot: "));
-  Serial.println(sizeof(pilot));
+  Serial.print(F("bytes Pilot: "));
+  Serial.print(sizeof(pilot));
+  Serial.println(F("bytes"));
   #endif
 }
 
@@ -442,11 +452,11 @@ void pth_next()
   switch( action )
   {
     case PTH_MOVE:
-      pilot.Move( *pth_sequence++);
+      pilot.MoveBy( *pth_sequence++);
       pth_state = PTH_WAITING;
       break;
     case PTH_TURN:
-      pilot.Turn( nvDEGREES(*pth_sequence++));
+      pilot.TurnBy( nvDEGREES(*pth_sequence++));
       pth_state = PTH_WAITING;
       break;
     default:

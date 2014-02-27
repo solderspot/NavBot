@@ -211,9 +211,11 @@ void Pilot::update_turn( void )
 	if ( turning )
 	{
 		nvRate max_rate = adh < 20.0f ? nvDEGREES(20) : adh < 40.0f ? nvDEGREES(30) : nvDEGREES( 45);
-		m_tPID.SetTarget( max_rate );
-		float adjust = m_tPID.CalcAdjustment( turning, m_dt );
-		adjust_mpower( (int16_t) adjust );
+		//m_tPID.SetTarget( max_rate );
+		//float adjust = m_tPID.CalcAdjustment( turning, m_dt );
+		//adjust_mpower( (int16_t) adjust );
+		int16_t adjust = abs(turning) < max_rate ?  10 : -10 ; 
+		adjust_mpower( adjust );
 	}
 	else
 	{
@@ -259,24 +261,40 @@ void    Pilot::Stop( void )
 //
 //----------------------------------------
 
-void    Pilot::Move( nvDistance distance )
+void    Pilot::MoveBy( nvDistance distance )
 {
 	m_task = PLT_TASK_MOVE;
-	m_target_pos = m_nav->NewPosition( distance );
+	m_target_pos = m_nav->NewPositionByHeading( m_target_heading, distance );
 }
 
 //----------------------------------------
 //
 //----------------------------------------
 
-void    Pilot::Turn( nvHeading degrees )
+void    Pilot::MoveTo( nvPosition &pos )
 {
-	//Serial.print(F("Pilot::Turn("));
-	//Serial.print(degrees);
-	//Serial.print(F(") -> "));
+	m_task = PLT_TASK_MOVE;
+	m_target_pos = pos
+}
+
+//----------------------------------------
+//
+//----------------------------------------
+
+void    Pilot::TurnBy( nvDegrees degrees )
+{
 	m_task = PLT_TASK_TURN;
 	m_target_heading = nvClipHeading( m_target_heading + degrees);
-	//Serial.println(m_target_heading);
+}
+
+//----------------------------------------
+//
+//----------------------------------------
+
+void    Pilot::TurnTo( nvHeading heading )
+{
+	m_task = PLT_TASK_TURN;
+	m_target_heading = nvClipHeading( heading );
 }
 
 //----------------------------------------

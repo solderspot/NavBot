@@ -110,6 +110,34 @@ nvPosition Navigator::NewPosition( nvDistance distance )
 //
 //----------------------------------------
 
+nvPosition Navigator::NewPosition( nvDistance x_offset, nvDistance y_offset )
+{
+	nvPosition pos;
+
+	pos.x = m_pose.position.x + x_offset;
+	pos.y = m_pose.position.y + y_offset;
+
+	return pos;
+}
+
+//----------------------------------------
+//
+//----------------------------------------
+
+nvPosition Navigator::NewPositionByHeading( nvHeading heading, nvDistance distance )
+{
+	nvPosition pos;
+	nvRadians h = nvClipRadians( nvDegToRad( heading));
+	pos.x = m_pose.position.x + distance*sin(heading);
+	pos.y = m_pose.position.y + distance*cos(heading);
+
+	return pos;
+}
+
+//----------------------------------------
+//
+//----------------------------------------
+
 void Navigator::GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance )
 {
 

@@ -54,18 +54,20 @@ class Pilot
         void                SetMinMoveSpeed( nvRate mm_per_second ) { m_min_move_speed = mm_per_second; }
         void                SetMaxTurnSpeed( nvRate degrees_per_second ) { m_max_turn_speed = degrees_per_second; }
         void                SetMinTurnSpeed( nvRate degrees_per_second ) { m_min_turn_speed = degrees_per_second; }
-        void                SetMinUpdateInterval( nvTime interval ) { m_min_update_interval = interval; m_hPID.minDelta = m_sPID.minDelta = (float)interval; }
+        void                SetMinServiceInterval( nvTime interval ) { m_min_update_interval = interval; m_hPID.minDelta = m_sPID.minDelta = (float)interval; }
         nvTime              MinUpdateInterval( void ) { return m_min_update_interval; }
         void                SetHeadingPID( float Kp, float Ki, float Kd ) { m_hPID.SetKs( Kp, Ki, Kd); }
         void                SetSpeedPID( float Kp, float Ki, float Kd ) { m_sPID.SetKs( Kp, Ki, Kd); }
-        void                SetTurinPID( float Kp, float Ki, float Kd ) { m_tPID.SetKs( Kp, Ki, Kd); }
+        void                SetTurnPID( float Kp, float Ki, float Kd ) { m_tPID.SetKs( Kp, Ki, Kd); }
 
         // methods          
         void                Reset( void );
         void                Service( void );
         void                Stop( void );
-        void                Move( nvDistance distance );
-        void                Turn( nvHeading degrees );
+        void                MoveBy( nvDistance distance );
+        void                MoveTo( nvPosition &pos );
+        void                TurnBy( nvDegrees degrees );
+        void                TurnTo( nvHeading heading );
         bool                IsDone( void ) { return m_task == PLT_TASK_DONE; }
 
     protected:

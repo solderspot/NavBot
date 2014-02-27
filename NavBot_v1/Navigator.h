@@ -117,7 +117,9 @@ class Navigator
 
 		// helpers
 		nvPosition		NewPosition( nvDistance distance );	
-                nvDegrees                HeadingAdjust( nvHeading target ); 
+		nvPosition		NewPositionByHeading( nvHeading, nvDistance distance );	
+        nvDegrees       HeadingAdjust( nvHeading target ); 
+		nvPosition		NewPosition( nvDistance x_offset, nvDistance y_offset );	
 
     protected:
 
