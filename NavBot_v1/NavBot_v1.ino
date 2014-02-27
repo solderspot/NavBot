@@ -19,7 +19,7 @@
 
 #define SERIAL_BAUD   9600
 
-#define MOTOR_INFO      0
+#define MOTOR_INFO      1
 #define BUTTON_INFO     0
 #define TEST_ENCODERS   0
 #define NAV_INFO        0

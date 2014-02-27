@@ -274,7 +274,7 @@ void    Pilot::MoveBy( nvDistance distance )
 void    Pilot::MoveTo( nvPosition &pos )
 {
 	m_task = PLT_TASK_MOVE;
-	m_target_pos = pos
+	m_target_pos = pos;
 }
 
 //----------------------------------------
