@@ -8,6 +8,15 @@
 #include "Navigator.h"
 #include <stddef.h>
 
+#define PLT_DEBUG_STATE		1
+#define PLT_DEBUG_TASK		1
+#define PLT_DEBUG_ENCODER	1
+#define PLT_MOVE_INFO		1
+#define PLT_TURN_INFO		1
+
+#define PLT_OUTPUT_DEBUG	(PLT_DEBUG_STATE|PLT_DEBUG_TASK|PLT_DEBUG_ENCODER )
+#define PLT_USE_SERIAL		(PLT_OUTPUT_DEBUG|PLT_MOVE_INFO|PLT_TURN_INFO)
+
 //----------------------------------------
 //
 //----------------------------------------
@@ -92,10 +101,12 @@ class Pilot
         State               m_state;
         nvPosition          m_target_pos;
         nvHeading           m_target_heading;
+        nvHeading           m_move_heading;
         nvDistance          m_target_dist;
         nvTime              m_last_time;
 		nvTime				m_dt;
 		bool				m_end_task_on_stop;
+		uint16_t			m_encoder_errors;
 
         // motor control
         int16_t             m_mpower;
@@ -138,6 +149,21 @@ class Pilot
 
 
 		nvTime 				getTime( void ) { return m_time_func(); }
+
+		// debug support
+		#if PLT_DEBUG_TASK
+		Task			m_last_task;
+		#endif
+		#if PLT_DEBUG_STATE
+		State			m_last_state;
+		#endif
+		#if PLT_DEBUG_ENCODER
+		uint16_t		m_last_encoder_errors;
+		#endif
+		#if PLT_OUTPUT_DEBUG
+		void				output_debug( void );
+		#endif 
+
 };
 
 #endif __PILOT_H

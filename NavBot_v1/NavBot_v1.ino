@@ -24,31 +24,31 @@
 #define TEST_ENCODERS   0
 #define NAV_INFO        0
 #define USE_PATHS       1
-#define TARGET_INFO     0
-#define MEM_REPORT      1
+#define TARGET_INFO     1
+#define MEM_REPORT      0
 
 #define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
                        |USE_PATHS|BUTTON_INFO \
                        |NAV_INFO|TARGET_INFO \
-                       |MEM_REPORT)
+                       |MEM_REPORT|PLT_USE_SERIAL)
 
 //----------------------------------------
 // Bot config
 //----------------------------------------
 
 // motors
-#define SWAP_MOTORS       0
+#define SWAP_MOTORS       1
 #define RMOTOR_DIR        -1L    // -1 to reverse, 1 for normal
 #define LMOTOR_DIR        1L     // -1 to reverse, 1 for normal
 
 // Navigator defines
-#define WHEEL_BASE      nvMM(108.0)
+#define WHEEL_BASE      nvMM(112.0)
 #define WHEEL_DIAMETER  nvMM(38.9)
 #define TICKS_PER_REV   1204
-#define HEADING_BIAS    0.0f
+#define ENCODER_BIAS    0.021f
 
 // Pilot heading PID controller coefficients
-#define Kp_HEADINGS     0.0f
+#define Kp_HEADINGS     8.0f
 #define Ki_HEADINGS     0.0f
 #define Kd_HEADINGS     0.0f
 
@@ -191,7 +191,7 @@ void setup()
 
   // set up navigation
   navigator.InitEncoder( WHEEL_DIAMETER, WHEEL_BASE, TICKS_PER_REV );
-  navigator.SetEncoderHeadingBias( HEADING_BIAS );
+  navigator.SetEncoderHeadingBias( ENCODER_BIAS );
 
   // set up pilot
   pilot.SetNavigator( navigator );
@@ -240,7 +240,7 @@ void loop()
       pilot.Reset();
       #if USE_PATHS
         // set up path
-        init_path( turningSequence );
+        init_path( squareSequence );
       #else
         pilot.Move(nvMETERS(3));
       #endif

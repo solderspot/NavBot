@@ -10,6 +10,31 @@
 //
 //----------------------------------------
 
+#if PLT_DEBUG_STATE
+const char *state_name[Pilot::PLT_NUM_STATES] = 
+{
+	"STOPPED",
+	"TURNING",
+	"MOVING",
+	"STOPPING"
+};
+#endif
+
+#if PLT_DEBUG_TASK
+const char *task_name[Pilot::PLT_NUM_TASKS] = 
+{
+	"NONE",
+	"DONE",
+	"TURN",
+	"MOVE",
+	"STOP"
+};
+#endif
+
+//----------------------------------------
+//
+//----------------------------------------
+
 Pilot::Pilot()
 : m_nav(NULL),
 m_time_func(NULL),
@@ -22,6 +47,16 @@ m_max_turn_speed(30.0f),
 m_min_update_interval(100.0f),
 m_task(PLT_TASK_DONE),
 m_state(PLT_STATE_STOPPED),
+#if PLT_SHOW_TASK
+m_last_task(PLT_TASK_DONE),
+#endif
+#if PLT_DEBUG_STATE
+m_last_state(PLT_STATE_STOPPED),
+#endif
+m_encoder_errors(0),
+#if PLT_DEBUG_ENCODER
+m_last_encoder_errors(0),
+#endif
 m_mpower(0),
 m_ladjust(0),
 m_radjust(0),
@@ -49,6 +84,7 @@ void    Pilot::Reset( void )
 	m_nav->Reset(m_last_time);
 	m_target_heading = m_nav->Heading();
 	m_target_pos = m_nav->Position();
+	m_encoder_errors = 0;
 }
 
 //----------------------------------------
@@ -66,14 +102,18 @@ void    Pilot::Service( void )
 	}
 	//Serial.println(F("Pilot::Service"));
 
+	#if PLT_OUTPUT_DEBUG
+		output_debug();
+	#endif
+
 	// first service the Navigator
 	{
-		int16_t lticks;
-		int16_t rticks;
+		int16_t lticks = 0;
+		int16_t rticks = 0;
 
-		if (!m_ticks_handler( this,  &lticks, &rticks ))
+		if( !m_ticks_handler( this,  &lticks, &rticks ))
 		{
-			return;
+			m_encoder_errors++;
 		}
 
 		m_nav->UpdateTicks( lticks, rticks, now );
@@ -82,7 +122,7 @@ void    Pilot::Service( void )
 	if ( !m_was_in_motion && m_nav->InMotion())
 	{
 		// we just started moving
-		m_mp_start - m_mpower;
+		m_mp_start = m_mpower;
 		m_was_in_motion = true;
 	}
 
@@ -130,14 +170,27 @@ void    Pilot::Service( void )
 		}
 		case PLT_TASK_MOVE:
 		{
-			// calculate the distance and heading to target
-			m_nav->GetTo( m_target_pos, &m_target_heading, &m_target_dist);
-
-			nvDegrees dh = m_target_heading - m_nav->Heading();
-
-			if ( abs(dh) > 5.0f )
+   			// calculate the distance and heading to target
+			m_nav->GetTo( m_target_pos, &m_move_heading, &m_target_dist);
+			nvDegrees dh = m_nav->HeadingAdjust( m_move_heading );
+			nvPosition pos = m_nav->Position();
+			#if 0
+			Serial.print("Target heading = ");
+			Serial.println(m_target_heading);
+			Serial.print(F("Targe x,y = "));
+			Serial.print(m_target_pos.x);
+			Serial.print(F(", "));
+			Serial.print(m_target_pos.y);
+			Serial.print(F(" from "));
+			Serial.print(pos.x);
+			Serial.print(F(", "));
+			Serial.println(pos.y);
+			#endif
+			if ( abs(dh) > 10.0f )
 			{
 				// we need to turn the bot first
+				//Serial.print("dh = ");
+				//Serial.println(dh);
 
 				if ( m_state == PLT_STATE_MOVING )
 				{
@@ -179,9 +232,11 @@ void    Pilot::Service( void )
 
 void Pilot::update_turn( void )
 {
-	nvDegrees dh = m_nav->HeadingAdjust( m_target_heading );
-	//Serial.print(F("Pilot::update_turn - dh = "));
-	//Serial.println( dh );
+	nvDegrees dh = m_nav->HeadingAdjust( m_task == PLT_TASK_MOVE ? m_move_heading : m_target_heading );
+	#if PLT_TURN_INFO
+		Serial.print(F("Pilot::update_turn - dh = "));
+		Serial.println( dh );
+	#endif
 	nvRate turning = m_nav->TurnRate();
 	int16_t dir = dh < 0.0f ? -1 : 1;
 	nvDegrees adh = dh < 0.0f ? dh*-1.0f : dh;
@@ -210,7 +265,7 @@ void Pilot::update_turn( void )
 
 	if ( turning )
 	{
-		nvRate max_rate = adh < 20.0f ? nvDEGREES(20) : adh < 40.0f ? nvDEGREES(30) : nvDEGREES( 45);
+		nvRate max_rate = adh < 20.0f ? nvDEGREES(30) : adh < 40.0f ? nvDEGREES(45) : nvDEGREES( 60);
 		//m_tPID.SetTarget( max_rate );
 		//float adjust = m_tPID.CalcAdjustment( turning, m_dt );
 		//adjust_mpower( (int16_t) adjust );
@@ -230,6 +285,59 @@ void Pilot::update_turn( void )
 
 void Pilot::update_move( void )
 {
+	nvDegrees dh = m_nav->HeadingAdjust( m_move_heading );
+	#if PLT_MOVE_INFO
+	Serial.print(F("Pilot::update_move - dh = "));
+	Serial.print( dh );
+	Serial.print(F(" dist = "));
+	Serial.println( m_target_dist );
+	#endif
+	nvRate speed = m_nav->Speed();
+	int16_t dir = m_target_dist < 0.0f ? -1 : 1;
+	nvDistance dist = abs(m_target_dist);
+
+	if ( dist < 5.0f )
+	{
+		full_stop();
+		if ( m_task == PLT_TASK_MOVE )
+		{
+			m_end_task_on_stop = true;
+		}
+		return;
+	}
+	Serial.println(dir);
+
+	// if the motors are not turn in the direction
+	// we want then we need to slow them down first
+
+	if ( m_mpower && (m_ldir != dir || m_rdir != dir) )
+	{
+		adjust_mpower( -10 );
+		return;
+	}
+
+	m_ldir = dir;
+	m_rdir = dir;
+
+	if ( speed )
+	{
+		nvRate max_rate = dist < 20.0f ? nvMM(20) : dist < 40.0f ? nvMM(60) : nvMM( 80);
+		int16_t adjust = abs(speed) < max_rate ?  10 : -10 ; 
+
+		float hadj = m_hPID.CalcAdjustment( dh, m_dt)/2.0f;
+
+		m_ladjust = (int16_t)hadj;
+		m_radjust = -(int16_t)hadj;
+
+		adjust_mpower( adjust );
+
+
+	}
+	else
+	{
+		// start the turn
+		adjust_mpower( m_mpower == 0 && m_mp_start ? m_mp_start : 10 ); 
+	}
 
 }
 
@@ -265,6 +373,10 @@ void    Pilot::MoveBy( nvDistance distance )
 {
 	m_task = PLT_TASK_MOVE;
 	m_target_pos = m_nav->NewPositionByHeading( m_target_heading, distance );
+	Serial.print(F("Move by Target: "));
+	Serial.print( m_target_pos.x);
+	Serial.print(F(", "));
+	Serial.println( m_target_pos.y);
 }
 
 //----------------------------------------
@@ -323,6 +435,45 @@ void Pilot::adjust_mpower( int16_t delta )
 	update_motors();
 }
 
+//----------------------------------------
+//
+//----------------------------------------
+
+#if PLT_OUTPUT_DEBUG
+void Pilot::output_debug( void )
+{
+	#if PLT_DEBUG_STATE
+	if ( m_state != m_last_state )
+	{
+		Serial.print(F("Pilot: state "));
+		Serial.print(state_name[m_last_state]);
+		Serial.print(F(" -> "));
+		Serial.println(state_name[m_state]);
+		m_last_state = m_state;
+	}
+	#endif
+
+	#if PLT_DEBUG_TASK
+	if ( m_task != m_last_task )
+	{
+		Serial.print(F("Pilot: TASK - "));
+		Serial.print(task_name[m_last_task]);
+		Serial.print(F(" -> "));
+		Serial.println(task_name[m_task]);
+		m_last_task = m_task;
+	}
+	#endif
+
+	#if PLT_DEBUG_ENCODER
+	if ( m_encoder_errors != m_last_encoder_errors )
+	{
+		Serial.print(F("Pilot: encoder errors "));
+		Serial.print(m_encoder_errors);
+		m_last_encoder_errors = m_encoder_errors;
+	}
+	#endif
+}
+#endif
 
 //----------------------------------------
 // PID Code

@@ -4,6 +4,7 @@
 
 #include "Navigator.h"
 #include <math.h>
+#include <Arduino.h>
 
 //----------------------------------------
 //
@@ -67,7 +68,7 @@ bool Navigator::UpdateTicks( int16_t lticks, int16_t rticks, nvTime now )
 
 	// use ticks and time delta to update position
 
-	nvDistance dr = ((nvDistance)m_rticks)*m_dist_per_tick;
+	nvDistance dr = ((nvDistance)m_rticks)*m_dist_per_tick*(1.0f + m_encoder_heading_bias);
 	nvDistance dl = ((nvDistance)m_lticks)*m_dist_per_tick;
 	nvDistance dd =  (dr + dl)/2;
 
@@ -127,9 +128,9 @@ nvPosition Navigator::NewPosition( nvDistance x_offset, nvDistance y_offset )
 nvPosition Navigator::NewPositionByHeading( nvHeading heading, nvDistance distance )
 {
 	nvPosition pos;
-	nvRadians h = nvClipRadians( nvDegToRad( heading));
-	pos.x = m_pose.position.x + distance*sin(heading);
-	pos.y = m_pose.position.y + distance*cos(heading);
+	nvRadians h = nvDegToRad(nvClipHeading(heading));
+	pos.x = m_pose.position.x + distance*sin(h);
+	pos.y = m_pose.position.y + distance*cos(h);
 
 	return pos;
 }
@@ -145,7 +146,21 @@ void Navigator::GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance
 	nvDistance dy = pos.y - m_pose.position.y;
 
 	*distance = sqrt( dx*dx + dy*dy );
-	*heading = nvRadToDeg(atan2(dx, dy)+M_PI);
+	*heading = nvClipHeading(nvRadToDeg(atan2(dx, dy)+2*M_PI));
+	#if 0
+	Serial.print("GetTo heading = ");
+	   Serial.print(pos.x);
+	   Serial.print(F(", "));
+	   Serial.print(pos.y);
+	   Serial.print(F(" from "));
+	   Serial.print(m_pose.position.x);
+	   Serial.print(F(", "));
+	   Serial.print(m_pose.position.y);
+	   Serial.print(F(" -> heading: "));
+	   Serial.print(*heading);
+	   Serial.print(F(" - dist: "));
+	   Serial.println(*distance);
+	#endif
 }
 
 //----------------------------------------
