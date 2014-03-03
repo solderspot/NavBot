@@ -101,18 +101,22 @@ class Navigator
         nvHeading       Heading( void ) { return m_pose.heading; }
         nvRate          Speed( void ) { return m_speed; }
         nvRate          TurnRate( void ) { return m_turn_rate; }
-        float           TicksHeadingBias( void ) { return m_encoder_heading_bias; }
-		bool			IsMoving( void ) { return m_speed != 0.0f; }
+ 		bool			IsMoving( void ) { return m_speed != 0.0f; }
 		bool			IsTurning( void ) { return m_turn_rate != 0.0f; }
 		bool			InMotion( void ) { return IsMoving() || IsTurning(); }
 		void			GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance );
+        float           WheelBaseAdjust( void ) { return m_wheel_base_adjust - 1.0f; }
+        float           WheelDistAdjust( void ) { return m_wheel_dist_adjust - 1.0f; }
+        float           LRWheelRatioAdjust( void ) { return m_lr_wheel_adjust - 1.0f; }
 
 		// setters
 		void            SetStartPose( const nvPose &pose) { m_init_pose.position = pose.position; m_init_pose.heading = nvClipHeading( pose.heading); }
 		void            SetStartPosition( const nvPosition &pos) { m_init_pose.position = pos; }
 		void            SetStartPosition( nvCoord x, nvCoord y) { m_init_pose.position.x = x; m_init_pose.position.y = y; }
 		void            SetStartHeading( nvHeading heading ) { m_init_pose.heading = nvClipHeading(heading); }
-		void            SetEncoderHeadingBias( float bias) { m_encoder_heading_bias = bias; }
+		void            SetLRWheelRatioAdjust( float lr_adjust) { m_lr_wheel_adjust = 1.0f + lr_adjust; }
+		void            SetWheelDistAdjust( float wd_adjust) { m_wheel_dist_adjust = 1.0f + wd_adjust; }
+		void            SetWheelBaseAdjust( float b_adjust) { m_wheel_base_adjust = 1.0f + b_adjust; }
 		void			SetMinInterval( nvTime min ) { m_min_dt = min; }
 
 		// helpers
@@ -130,9 +134,14 @@ class Navigator
 
 		// settings/config
         nvPose          m_init_pose;			// starting pose
+		uint16_t		m_ticks_per_rev;		// encoder ticks per wheel revolution
+        nvDistance      m_wheel_diam;		    // wheel diameter
         nvDistance      m_dist_per_tick;		// dist travelled per tick
+        nvDistance      m_base_dist;            // nominal wheel base
         nvDistance      m_wheel_base;           // mm width of wheel base
-        float           m_encoder_heading_bias;	// encoder bias compensation
+        float           m_lr_wheel_adjust;	    // lleft/right wheel ration adjustment
+        float           m_wheel_dist_adjust;	// wheel linear distance adjustment
+        float           m_wheel_base_adjust;	// wheel base adjustment
 		nvTime			m_min_dt;   			// minimum time delta unit
 
 		// state data

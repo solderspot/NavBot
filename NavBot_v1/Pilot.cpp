@@ -16,7 +16,8 @@ const char *state_name[Pilot::PLT_NUM_STATES] =
 	"STOPPED",
 	"TURNING",
 	"MOVING",
-	"STOPPING"
+	"STOPPING",
+	"SPINNING"
 };
 #endif
 
@@ -27,7 +28,8 @@ const char *task_name[Pilot::PLT_NUM_TASKS] =
 	"DONE",
 	"TURN",
 	"MOVE",
-	"STOP"
+	"STOP",
+	"SPIN"
 };
 #endif
 
@@ -168,6 +170,21 @@ void    Pilot::Service( void )
 			m_state = PLT_STATE_TURNING;
 			break;
 		}
+		case PLT_TASK_SPIN:
+		{
+			if ( m_state == PLT_STATE_MOVING )
+			{
+				// need to stop first
+				full_stop();
+				return;
+			}
+			if ( m_state != PLT_STATE_SPINNING)
+			{
+				m_state = PLT_STATE_SPINNING; 
+				m_spin_last_heading = m_nav->Heading();
+			}
+			break;
+		}
 		case PLT_TASK_MOVE:
 		{
    			// calculate the distance and heading to target
@@ -212,7 +229,16 @@ void    Pilot::Service( void )
 	{
 		case PLT_STATE_TURNING:
 		{
-			update_turn();
+			update_turn( m_nav->HeadingAdjust( m_task == PLT_TASK_MOVE ? m_move_heading : m_target_heading ));
+			break;
+		}
+		case PLT_STATE_SPINNING:
+		{
+			nvHeading h = m_nav->HeadingAdjust(m_spin_last_heading);
+			m_total_spin +=  h ;
+			m_spin_last_heading = m_nav->Heading();
+
+			update_turn( m_total_spin );
 			break;
 		}
 		case PLT_STATE_MOVING:
@@ -230,28 +256,28 @@ void    Pilot::Service( void )
 //
 //----------------------------------------
 
-void Pilot::update_turn( void )
+void Pilot::update_turn( nvDegrees dh )
 {
-	nvDegrees dh = m_nav->HeadingAdjust( m_task == PLT_TASK_MOVE ? m_move_heading : m_target_heading );
+	
 	#if PLT_TURN_INFO
 		Serial.print(F("Pilot::update_turn - dh = "));
 		Serial.println( dh );
 	#endif
-	nvRate turning = m_nav->TurnRate();
+	nvRate turning = abs(m_nav->TurnRate());
 	int16_t dir = dh < 0.0f ? -1 : 1;
 	nvDegrees adh = dh < 0.0f ? dh*-1.0f : dh;
 
 	if ( adh < 2.0f )
 	{
 		full_stop();
-		if ( m_task == PLT_TASK_TURN )
+		if ( m_task == PLT_TASK_TURN || m_task == PLT_TASK_SPIN )
 		{
 			m_end_task_on_stop = true;
 		}
 		return;
 	}
 
-	// if the motors are not turn in the direction
+	// if the motors are not turning in the direction
 	// we want then we need to slow them down first
 
 	if ( m_mpower && (m_ldir != dir || m_rdir != -dir) )
@@ -265,12 +291,15 @@ void Pilot::update_turn( void )
 
 	if ( turning )
 	{
-		nvRate max_rate = adh < 20.0f ? nvDEGREES(30) : adh < 40.0f ? nvDEGREES(45) : nvDEGREES( 60);
-		//m_tPID.SetTarget( max_rate );
-		//float adjust = m_tPID.CalcAdjustment( turning, m_dt );
-		//adjust_mpower( (int16_t) adjust );
-		int16_t adjust = abs(turning) < max_rate ?  10 : -10 ; 
+		nvRate max_rate = adh < 20.0f ? nvDEGREES(30) : adh < 40.0f ? nvDEGREES(45) : m_max_turn_speed;
+		max_rate = max_rate > m_max_turn_speed ? m_max_turn_speed : max_rate;
+
+		int16_t adjust = m_tPID.CalcAdjustment( max_rate - turning, m_dt); 
+
+		adjust = adjust > 10 ? 10 : adjust < -10 ? -10 : adjust;
+
 		adjust_mpower( adjust );
+
 	}
 	else
 	{
@@ -305,9 +334,8 @@ void Pilot::update_move( void )
 		}
 		return;
 	}
-	Serial.println(dir);
 
-	// if the motors are not turn in the direction
+	// if the motors are not turning in the direction
 	// we want then we need to slow them down first
 
 	if ( m_mpower && (m_ldir != dir || m_rdir != dir) )
@@ -321,17 +349,19 @@ void Pilot::update_move( void )
 
 	if ( speed )
 	{
-		nvRate max_rate = dist < 20.0f ? nvMM(20) : dist < 40.0f ? nvMM(60) : nvMM( 80);
-		int16_t adjust = abs(speed) < max_rate ?  10 : -10 ; 
-
-		float hadj = m_hPID.CalcAdjustment( dh, m_dt)/2.0f;
-
+		float hadj = m_hPID.CalcAdjustment( dh, m_dt);
 		m_ladjust = (int16_t)hadj;
-		m_radjust = -(int16_t)hadj;
+		m_radjust -= (int16_t)hadj;
+
+
+		nvRate max_rate = dist < 20.0f ? nvMM(20) : dist < 40.0f ? nvMM(60) : m_max_move_speed ;
+		max_rate = max_rate > m_max_move_speed ? m_max_move_speed : max_rate;
+
+		int16_t adjust = m_sPID.CalcAdjustment( max_rate - speed, m_dt); 
+
+		adjust = adjust > 10 ? 10 : adjust < -10 ? -10 : adjust;
 
 		adjust_mpower( adjust );
-
-
 	}
 	else
 	{
@@ -403,6 +433,17 @@ void    Pilot::TurnBy( nvDegrees degrees )
 //
 //----------------------------------------
 
+void    Pilot::SpinBy( nvDegrees degrees )
+{
+	m_task = PLT_TASK_SPIN;
+	m_target_heading = nvClipHeading( m_target_heading + degrees);
+	m_total_spin = degrees;
+}
+
+//----------------------------------------
+//
+//----------------------------------------
+
 void    Pilot::TurnTo( nvHeading heading )
 {
 	m_task = PLT_TASK_TURN;
@@ -413,13 +454,16 @@ void    Pilot::TurnTo( nvHeading heading )
 //
 //----------------------------------------
 
+#define MAX_M_ADJUST		20
+
 void Pilot::update_motors( void )
 {
+	m_ladjust =  m_ladjust > MAX_M_ADJUST ? MAX_M_ADJUST : m_ladjust < -MAX_M_ADJUST ? -MAX_M_ADJUST : m_ladjust; 
+	m_radjust =  m_radjust > MAX_M_ADJUST ? MAX_M_ADJUST : m_radjust < -MAX_M_ADJUST ? -MAX_M_ADJUST : m_radjust; 
 	int16_t l = m_mpower + (m_mpower*m_ladjust)/100L;
 	int16_t r = m_mpower + (m_mpower*m_radjust)/100L;
 	l = (l > 1024) ? 1024 : (l < 0 ? 0 : l); 
 	r = (r > 1024) ? 1024 : (r < 0 ? 0 : r); 
-
 	m_motor_handler( this, l*m_ldir, r*m_rdir );
 }
 

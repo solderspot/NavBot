@@ -12,7 +12,9 @@
 
 Navigator::Navigator()
 :m_dist_per_tick(0),
- m_encoder_heading_bias(0.0f),
+ m_lr_wheel_adjust(1.0f),
+ m_wheel_dist_adjust(1.0f),
+ m_wheel_base_adjust(1.0f),
  m_min_dt(nvMS(10))
 {
 	m_init_pose.position.x = 0.0f;
@@ -27,8 +29,9 @@ Navigator::Navigator()
 
 void Navigator::InitEncoder( nvDistance wheel_diameter, nvDistance wheel_base, uint16_t ticks_per_rev )
 {
-    m_dist_per_tick = ticks_per_rev > 0 ? wheel_diameter*M_PI/ticks_per_rev : 0.0f;
-    m_wheel_base = wheel_base > 1.0f ? wheel_base : 1.0f; 
+	m_wheel_diam = wheel_diameter;
+	m_wheel_base = wheel_base;
+	m_ticks_per_rev = ticks_per_rev;
 }
 
 //----------------------------------------
@@ -38,11 +41,15 @@ void Navigator::InitEncoder( nvDistance wheel_diameter, nvDistance wheel_base, u
 void Navigator::Reset( nvTime now )
 {
     m_last_ticks_time = now;
-	m_dt = m_lticks = m_rticks = 0.0f;
+	m_dt = 0;
+	m_lticks = m_rticks = 0;
 	m_pose = m_init_pose;
 	m_heading = nvDegToRad(m_pose.heading);
     m_speed = nvMM(0.0);
     m_turn_rate = nvDEGREES(0.0);
+    m_dist_per_tick = m_ticks_per_rev > 0 ? (m_wheel_diam*M_PI/m_ticks_per_rev)/m_wheel_dist_adjust : 0.0f;
+	m_base_dist = m_wheel_base*m_wheel_base_adjust;
+    m_base_dist = m_base_dist > 1.0f ? m_base_dist : 1.0f; 
 }
 
 //----------------------------------------
@@ -68,19 +75,19 @@ bool Navigator::UpdateTicks( int16_t lticks, int16_t rticks, nvTime now )
 
 	// use ticks and time delta to update position
 
-	nvDistance dr = ((nvDistance)m_rticks)*m_dist_per_tick*(1.0f + m_encoder_heading_bias);
+	nvDistance dr = ((nvDistance)m_rticks)*m_dist_per_tick*m_lr_wheel_adjust;
 	nvDistance dl = ((nvDistance)m_lticks)*m_dist_per_tick;
 	nvDistance dd =  (dr + dl)/2;
 
     // calc and update change in heading
-    nvRadians dh = (dl - dr)/m_wheel_base;
+    nvRadians dh = (dl - dr)/m_base_dist;
 	m_heading = nvClipRadians( m_heading + dh);
 
 	// update velocities
 	m_speed = (dd*1000.0f)/m_dt;
     m_turn_rate = (nvRadToDeg(dh)*1000.0f)/m_dt;
-        
-        // update pose
+
+    // update pose
 	m_pose.heading = nvRadToDeg(m_heading);
 	m_pose.position.x += dd*sin(m_heading);
 	m_pose.position.y += dd*cos(m_heading);

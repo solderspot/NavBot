@@ -19,7 +19,7 @@
 
 #define SERIAL_BAUD   9600
 
-#define MOTOR_INFO      1
+#define MOTOR_INFO      0
 #define BUTTON_INFO     0
 #define TEST_ENCODERS   0
 #define NAV_INFO        0
@@ -42,25 +42,29 @@
 #define LMOTOR_DIR        1L     // -1 to reverse, 1 for normal
 
 // Navigator defines
-#define WHEEL_BASE      nvMM(112.0)
+#define WHEEL_BASE      nvMM(85.0)
 #define WHEEL_DIAMETER  nvMM(38.9)
 #define TICKS_PER_REV   1204
-#define ENCODER_BIAS    0.021f
+#define LRWHEEL_ADJUST  0.0178f
+#define DIST_ADJUST     0.069f
+#define BASE_ADJUST     0.2548f
 
 // Pilot heading PID controller coefficients
-#define Kp_HEADINGS     8.0f
+#define Kp_HEADINGS     2.0f
 #define Ki_HEADINGS     0.0f
 #define Kd_HEADINGS     0.0f
 
 // Pilot speed PID controller coefficients
-#define Kp_SPEED        0.0f
+#define Kp_SPEED        0.5f
 #define Ki_SPEED        0.0f
 #define Kd_SPEED        0.0f
 
 // Pilot turn PID controller coefficients
-#define Kp_TURN        0.0f
+#define Kp_TURN        0.5f
 #define Ki_TURN        0.0f
 #define Kd_TURN        0.0f
+
+#define MAX_SPEED     nvMM(100)
 
 
 //----------------------------------------
@@ -153,7 +157,6 @@ int16_t backForthSequence[] =
   PTH_END 
 };
 
-
 int16_t turningSequence[] = 
 {
   PTH_TURN, 180,
@@ -191,7 +194,9 @@ void setup()
 
   // set up navigation
   navigator.InitEncoder( WHEEL_DIAMETER, WHEEL_BASE, TICKS_PER_REV );
-  navigator.SetEncoderHeadingBias( ENCODER_BIAS );
+  navigator.SetLRWheelRatioAdjust( LRWHEEL_ADJUST );
+  navigator.SetWheelDistAdjust( DIST_ADJUST );
+  navigator.SetWheelBaseAdjust( BASE_ADJUST );
 
   // set up pilot
   pilot.SetNavigator( navigator );
@@ -202,7 +207,7 @@ void setup()
   pilot.SetSpeedPID( Kp_SPEED, Ki_SPEED, Kd_SPEED);
   pilot.SetTurnPID( Kp_TURN, Ki_TURN, Kd_TURN);
   pilot.SetMinMoveSpeed( nvMM(10));
-  pilot.SetMaxMoveSpeed( nvMM(30));
+  pilot.SetMaxMoveSpeed( MAX_SPEED );
   pilot.SetMinTurnSpeed( nvDEGREES(10) );
   pilot.SetMaxTurnSpeed( nvDEGREES(45) );
   pilot.SetMinServiceInterval( nvMS(20) );
@@ -242,7 +247,8 @@ void loop()
         // set up path
         init_path( squareSequence );
       #else
-        pilot.Move(nvMETERS(3));
+        //pilot.MoveBy(nvMETERS(2));
+        pilot.SpinBy(nvDEGREES(-360*4));
       #endif
       state = RUNNING;
       break;

@@ -31,6 +31,7 @@ class Pilot
             PLT_STATE_TURNING,
             PLT_STATE_MOVING,
             PLT_STATE_STOPPING,
+            PLT_STATE_SPINNING,
             PLT_NUM_STATES
         };
 
@@ -41,6 +42,7 @@ class Pilot
             PLT_TASK_TURN,
             PLT_TASK_MOVE,
             PLT_TASK_STOP,
+            PLT_TASK_SPIN,
             PLT_NUM_TASKS
         };
 
@@ -76,6 +78,7 @@ class Pilot
         void                MoveBy( nvDistance distance );
         void                MoveTo( nvPosition &pos );
         void                TurnBy( nvDegrees degrees );
+        void                SpinBy( nvDegrees degrees );
         void                TurnTo( nvHeading heading );
         bool                IsDone( void ) { return m_task == PLT_TASK_DONE; }
 
@@ -117,11 +120,13 @@ class Pilot
 		int16_t				m_mp_start;			// power level that motors will start movement 
 		int16_t 			m_mp_stop;			// power level at which motors will stop movement
 		bool				m_was_in_motion;	// detect start and stop of movement
+		nvDegrees			m_total_spin;
+		nvHeading			m_spin_last_heading;
 
 		void				update_motors( void );
 		void				adjust_mpower( int16_t );
         void                full_stop( void );
-        void                update_turn( void );
+        void                update_turn( nvDegrees dh );
         void                update_move( void );
 
 
