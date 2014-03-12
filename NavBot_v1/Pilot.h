@@ -8,11 +8,11 @@
 #include "Navigator.h"
 #include <stddef.h>
 
-#define PLT_DEBUG_STATE		1
-#define PLT_DEBUG_TASK		1
-#define PLT_DEBUG_ENCODER	1
-#define PLT_MOVE_INFO		1
-#define PLT_TURN_INFO		1
+#define PLT_DEBUG_STATE		0
+#define PLT_DEBUG_TASK		0
+#define PLT_DEBUG_ENCODER	0
+#define PLT_MOVE_INFO		0
+#define PLT_TURN_INFO		0
 
 #define PLT_OUTPUT_DEBUG	(PLT_DEBUG_STATE|PLT_DEBUG_TASK|PLT_DEBUG_ENCODER )
 #define PLT_USE_SERIAL		(PLT_OUTPUT_DEBUG|PLT_MOVE_INFO|PLT_TURN_INFO)
@@ -70,6 +70,7 @@ class Pilot
         void                SetHeadingPID( float Kp, float Ki, float Kd ) { m_hPID.SetKs( Kp, Ki, Kd); }
         void                SetSpeedPID( float Kp, float Ki, float Kd ) { m_sPID.SetKs( Kp, Ki, Kd); }
         void                SetTurnPID( float Kp, float Ki, float Kd ) { m_tPID.SetKs( Kp, Ki, Kd); }
+		void				SetTargetRadius( nvDistance radius) { m_target_radius = radius;}
 
         // methods          
         void                Reset( void );
@@ -98,6 +99,7 @@ class Pilot
         nvRate              m_min_turn_speed;
         nvRate              m_max_turn_speed;
         nvTime              m_min_update_interval;
+		nvDistance			m_target_radius;		// acceptable destination radius
 
         // logic states
         Task                m_task;

@@ -59,6 +59,7 @@ m_encoder_errors(0),
 #if PLT_DEBUG_ENCODER
 m_last_encoder_errors(0),
 #endif
+m_target_radius(nvMM(10)),
 m_mpower(0),
 m_ladjust(0),
 m_radjust(0),
@@ -102,7 +103,10 @@ void    Pilot::Service( void )
 	{
 		return;
 	}
-	//Serial.println(F("Pilot::Service"));
+
+        m_last_time = now;
+	//Serial.print(F("Pilot::Service - m_dt = "));
+        //Serial.println(m_dt);
 
 	#if PLT_OUTPUT_DEBUG
 		output_debug();
@@ -203,7 +207,7 @@ void    Pilot::Service( void )
 			Serial.print(F(", "));
 			Serial.println(pos.y);
 			#endif
-			if ( abs(dh) > 10.0f )
+			if ( abs(dh) > 10.0f && abs(m_target_dist) > m_target_radius )
 			{
 				// we need to turn the bot first
 				//Serial.print("dh = ");
@@ -325,7 +329,7 @@ void Pilot::update_move( void )
 	int16_t dir = m_target_dist < 0.0f ? -1 : 1;
 	nvDistance dist = abs(m_target_dist);
 
-	if ( dist < 5.0f )
+	if ( dist < m_target_radius/2.0f )
 	{
 		full_stop();
 		if ( m_task == PLT_TASK_MOVE )
@@ -349,11 +353,12 @@ void Pilot::update_move( void )
 
 	if ( speed )
 	{
+		// adjust heading
 		float hadj = m_hPID.CalcAdjustment( dh, m_dt);
 		m_ladjust = (int16_t)hadj;
-		m_radjust -= (int16_t)hadj;
+		m_radjust = -(int16_t)hadj;
 
-
+		// adjust speed
 		nvRate max_rate = dist < 20.0f ? nvMM(20) : dist < 40.0f ? nvMM(60) : m_max_move_speed ;
 		max_rate = max_rate > m_max_move_speed ? m_max_move_speed : max_rate;
 
@@ -402,7 +407,7 @@ void    Pilot::Stop( void )
 void    Pilot::MoveBy( nvDistance distance )
 {
 	m_task = PLT_TASK_MOVE;
-	m_target_pos = m_nav->NewPositionByHeading( m_target_heading, distance );
+	m_target_pos = m_nav->NewPositionByHeading( m_target_pos, m_target_heading, distance );
 	Serial.print(F("Move by Target: "));
 	Serial.print( m_target_pos.x);
 	Serial.print(F(", "));

@@ -37,34 +37,35 @@
 //----------------------------------------
 
 // motors
-#define SWAP_MOTORS       1
-#define RMOTOR_DIR        -1L    // -1 to reverse, 1 for normal
-#define LMOTOR_DIR        1L     // -1 to reverse, 1 for normal
+#define SWAP_MOTORS             1
+#define RMOTOR_DIR              1L    // -1 to reverse, 1 for normal
+#define LMOTOR_DIR              1L     // -1 to reverse, 1 for normal
 
 // Navigator defines
-#define WHEEL_BASE      nvMM(85.0)
-#define WHEEL_DIAMETER  nvMM(38.9)
-#define TICKS_PER_REV   1204
-#define LRWHEEL_ADJUST  0.0178f
-#define DIST_ADJUST     0.069f
-#define BASE_ADJUST     0.2548f
-
+#define WHEEL_BASE              nvMM(112.95)
+#define WHEEL_DIAMETER          nvMM(38.55)
+#define TICKS_PER_REV           1204
+#define FORWARD_HEADING_ADJUST  -0.0015f
+#define LEFT_HEADING_ADJUST    -0.0010f
+#define RIGHT_HEADING_ADJUST    0.0045f
+#define FORWARD_DIST_ADJUST     0.06f
+#define RIGHT_DIST_ADJUST       -0.285f
 // Pilot heading PID controller coefficients
-#define Kp_HEADINGS     2.0f
-#define Ki_HEADINGS     0.0f
-#define Kd_HEADINGS     0.0f
+#define Kp_HEADINGS             5.0f
+#define Ki_HEADINGS             0.0f
+#define Kd_HEADINGS             0.0f
 
 // Pilot speed PID controller coefficients
-#define Kp_SPEED        0.5f
-#define Ki_SPEED        0.0f
-#define Kd_SPEED        0.0f
+#define Kp_SPEED                0.5f
+#define Ki_SPEED                0.0f
+#define Kd_SPEED                0.0f
 
 // Pilot turn PID controller coefficients
-#define Kp_TURN        0.5f
-#define Ki_TURN        0.0f
-#define Kd_TURN        0.0f
+#define Kp_TURN                 0.5f
+#define Ki_TURN                 0.0f
+#define Kd_TURN                 0.0f
 
-#define MAX_SPEED     nvMM(100)
+#define MAX_SPEED               nvMM(100)
 
 
 //----------------------------------------
@@ -142,11 +143,11 @@ int16_t squareSequence[] =
   PTH_MOVE, 600, PTH_TURN, 90, 
   PTH_MOVE, 600, PTH_TURN, 90, 
   PTH_MOVE, 600, PTH_TURN, 90, 
-  PTH_MOVE, 600,
-  PTH_MOVE, -600, PTH_TURN, -90, 
-  PTH_MOVE, -600, PTH_TURN, -90, 
-  PTH_MOVE, -600, PTH_TURN, -90, 
-  PTH_MOVE, -600,
+  PTH_MOVE, 600, PTH_TURN, 180,
+  PTH_MOVE, 600, PTH_TURN, -90, 
+  PTH_MOVE, 600, PTH_TURN, -90, 
+  PTH_MOVE, 600, PTH_TURN, -90, 
+  PTH_MOVE, 600, PTH_TURN, 180,
   PTH_END 
 };
 
@@ -156,6 +157,7 @@ int16_t backForthSequence[] =
   PTH_MOVE, -2000,
   PTH_END 
 };
+
 
 int16_t turningSequence[] = 
 {
@@ -194,10 +196,11 @@ void setup()
 
   // set up navigation
   navigator.InitEncoder( WHEEL_DIAMETER, WHEEL_BASE, TICKS_PER_REV );
-  navigator.SetLRWheelRatioAdjust( LRWHEEL_ADJUST );
-  navigator.SetWheelDistAdjust( DIST_ADJUST );
-  navigator.SetWheelBaseAdjust( BASE_ADJUST );
-
+  navigator.SetHeadingAdjust( nvADJUST_FORWARD, FORWARD_HEADING_ADJUST );
+  navigator.SetHeadingAdjust( nvADJUST_LEFT, LEFT_HEADING_ADJUST );
+  navigator.SetHeadingAdjust( nvADJUST_RIGHT, RIGHT_HEADING_ADJUST );
+  navigator.SetDistanceAdjust( nvADJUST_FORWARD, FORWARD_DIST_ADJUST );
+  navigator.SetDistanceAdjust( nvADJUST_RIGHT, RIGHT_DIST_ADJUST );
   // set up pilot
   pilot.SetNavigator( navigator );
   pilot.SetTimeFunction( millis );
@@ -208,9 +211,9 @@ void setup()
   pilot.SetTurnPID( Kp_TURN, Ki_TURN, Kd_TURN);
   pilot.SetMinMoveSpeed( nvMM(10));
   pilot.SetMaxMoveSpeed( MAX_SPEED );
-  pilot.SetMinTurnSpeed( nvDEGREES(10) );
-  pilot.SetMaxTurnSpeed( nvDEGREES(45) );
-  pilot.SetMinServiceInterval( nvMS(20) );
+  pilot.SetMinTurnSpeed( nvDEGREES(15) );
+  pilot.SetMaxTurnSpeed( nvDEGREES(50) );
+  pilot.SetMinServiceInterval( nvMS(10) );
 
   #if MEM_REPORT
   memReport();
@@ -248,7 +251,7 @@ void loop()
         init_path( squareSequence );
       #else
         //pilot.MoveBy(nvMETERS(2));
-        pilot.SpinBy(nvDEGREES(-360*4));
+        pilot.SpinBy(nvDEGREES(-360*5));
       #endif
       state = RUNNING;
       break;
@@ -258,6 +261,14 @@ void loop()
     {
       #if USE_PATHS
         update_path();
+      #else
+        if( pilot.IsDone())
+        {
+           #if TARGET_INFO
+           printNavInfo();
+           #endif
+           state = WAITING;
+        }
       #endif
       break;
     }

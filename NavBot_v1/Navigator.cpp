@@ -12,15 +12,16 @@
 
 Navigator::Navigator()
 :m_dist_per_tick(0),
- m_lr_wheel_adjust(1.0f),
- m_wheel_dist_adjust(1.0f),
- m_wheel_base_adjust(1.0f),
  m_min_dt(nvMS(10))
 {
 	m_init_pose.position.x = 0.0f;
 	m_init_pose.position.y = 0.0f;
 	m_init_pose.heading = 0.0f;
-    Reset( 0 );
+	for (int i=0; i<nvNUM_ADJUSTS; i++)
+	{
+		m_dist_adjust[i] = m_heading_adjust[i] = 1.0f;
+	}
+	Reset(0); 
 }
 
 //----------------------------------------
@@ -47,8 +48,8 @@ void Navigator::Reset( nvTime now )
 	m_heading = nvDegToRad(m_pose.heading);
     m_speed = nvMM(0.0);
     m_turn_rate = nvDEGREES(0.0);
-    m_dist_per_tick = m_ticks_per_rev > 0 ? (m_wheel_diam*M_PI/m_ticks_per_rev)/m_wheel_dist_adjust : 0.0f;
-	m_base_dist = m_wheel_base*m_wheel_base_adjust;
+    m_dist_per_tick = m_ticks_per_rev > 0 ? (m_wheel_diam*M_PI/m_ticks_per_rev) : 0.0f;
+	m_base_dist = m_wheel_base;
     m_base_dist = m_base_dist > 1.0f ? m_base_dist : 1.0f; 
 }
 
@@ -73,15 +74,25 @@ bool Navigator::UpdateTicks( int16_t lticks, int16_t rticks, nvTime now )
 		return false;
 	}
 
+	int type;
 	// use ticks and time delta to update position
+	if( m_lticks < 0 )
+	{
+		type = m_rticks < 0 ? nvADJUST_BACKWARD : nvADJUST_LEFT ;
+	}
+	else
+	{
+		type = m_rticks < 0 ? nvADJUST_RIGHT : nvADJUST_FORWARD ;
+	}
 
-	nvDistance dr = ((nvDistance)m_rticks)*m_dist_per_tick*m_lr_wheel_adjust;
+	nvDistance dr = ((nvDistance)m_rticks)*m_dist_per_tick*m_heading_adjust[type];
 	nvDistance dl = ((nvDistance)m_lticks)*m_dist_per_tick;
-	nvDistance dd =  (dr + dl)/2;
+	nvDistance dd = (dr + dl)/m_dist_adjust[type]/2;
 
     // calc and update change in heading
     nvRadians dh = (dl - dr)/m_base_dist;
 	m_heading = nvClipRadians( m_heading + dh);
+	nvRadians xyh = nvClipRadians( m_heading + (type<=nvADJUST_BACKWARD ? dh/2 : dh));
 
 	// update velocities
 	m_speed = (dd*1000.0f)/m_dt;
@@ -89,8 +100,8 @@ bool Navigator::UpdateTicks( int16_t lticks, int16_t rticks, nvTime now )
 
     // update pose
 	m_pose.heading = nvRadToDeg(m_heading);
-	m_pose.position.x += dd*sin(m_heading);
-	m_pose.position.y += dd*cos(m_heading);
+	m_pose.position.x += dd*sin(xyh);
+	m_pose.position.y += dd*cos(xyh);
 
         // reset delta values
 	m_dt = 0;
@@ -132,14 +143,14 @@ nvPosition Navigator::NewPosition( nvDistance x_offset, nvDistance y_offset )
 //
 //----------------------------------------
 
-nvPosition Navigator::NewPositionByHeading( nvHeading heading, nvDistance distance )
+nvPosition Navigator::NewPositionByHeading( nvPosition &pos, nvHeading heading, nvDistance distance )
 {
-	nvPosition pos;
+	nvPosition new_pos;
 	nvRadians h = nvDegToRad(nvClipHeading(heading));
-	pos.x = m_pose.position.x + distance*sin(h);
-	pos.y = m_pose.position.y + distance*cos(h);
+	new_pos.x = pos.x + distance*sin(h);
+	new_pos.y = pos.y + distance*cos(h);
 
-	return pos;
+	return new_pos;
 }
 
 //----------------------------------------

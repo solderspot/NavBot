@@ -81,6 +81,20 @@ struct nvPose
 };
 
 //----------------------------------------
+// nvAdjustType
+//----------------------------------------
+
+enum nvAdjustType
+{
+	nvADJUST_FORWARD,
+	nvADJUST_BACKWARD,
+	nvADJUST_LEFT,
+	nvADJUST_RIGHT,
+	nvNUM_ADJUSTS
+};
+
+
+//----------------------------------------
 // Navigator
 //----------------------------------------
 
@@ -105,51 +119,49 @@ class Navigator
 		bool			IsTurning( void ) { return m_turn_rate != 0.0f; }
 		bool			InMotion( void ) { return IsMoving() || IsTurning(); }
 		void			GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance );
-        float           WheelBaseAdjust( void ) { return m_wheel_base_adjust - 1.0f; }
-        float           WheelDistAdjust( void ) { return m_wheel_dist_adjust - 1.0f; }
-        float           LRWheelRatioAdjust( void ) { return m_lr_wheel_adjust - 1.0f; }
+        float           HeadingAdjust( nvAdjustType type ) { return m_heading_adjust[type] - 1.0f; }
+        float           DistanceAdjust( nvAdjustType type ) { return m_dist_adjust[type] - 1.0f; }
 
 		// setters
 		void            SetStartPose( const nvPose &pose) { m_init_pose.position = pose.position; m_init_pose.heading = nvClipHeading( pose.heading); }
 		void            SetStartPosition( const nvPosition &pos) { m_init_pose.position = pos; }
 		void            SetStartPosition( nvCoord x, nvCoord y) { m_init_pose.position.x = x; m_init_pose.position.y = y; }
 		void            SetStartHeading( nvHeading heading ) { m_init_pose.heading = nvClipHeading(heading); }
-		void            SetLRWheelRatioAdjust( float lr_adjust) { m_lr_wheel_adjust = 1.0f + lr_adjust; }
-		void            SetWheelDistAdjust( float wd_adjust) { m_wheel_dist_adjust = 1.0f + wd_adjust; }
-		void            SetWheelBaseAdjust( float b_adjust) { m_wheel_base_adjust = 1.0f + b_adjust; }
+		void            SetHeadingAdjust( nvAdjustType type, float adjust) { m_heading_adjust[type] = 1.0f + adjust; }
+		void            SetDistanceAdjust( nvAdjustType type, float adjust) { m_dist_adjust[type] = 1.0f + adjust; }
 		void			SetMinInterval( nvTime min ) { m_min_dt = min; }
 
 		// helpers
 		nvPosition		NewPosition( nvDistance distance );	
-		nvPosition		NewPositionByHeading( nvHeading, nvDistance distance );	
+        nvPosition      NewPositionByHeading( nvPosition &pos, nvHeading heading, nvDistance dist );	
+		nvPosition		NewPositionByHeading( nvHeading heading, nvDistance distance ) { return NewPositionByHeading( m_pose.position, heading, distance); }
         nvDegrees       HeadingAdjust( nvHeading target ); 
-		nvPosition		NewPosition( nvDistance x_offset, nvDistance y_offset );	
+		nvPosition		NewPosition( nvDistance x_offset, nvDistance y_offset );
 
     protected:
 
 		// spacial properties
-        nvPose          m_pose;					// current pose
-        nvRate          m_speed;                // current mm per second
-        nvRate          m_turn_rate;            // current degrees per second
+        nvPose          m_pose;								// current pose
+        nvRate          m_speed;                			// current mm per second
+        nvRate          m_turn_rate;            			// current degrees per second
 
-		// settings/config
-        nvPose          m_init_pose;			// starting pose
-		uint16_t		m_ticks_per_rev;		// encoder ticks per wheel revolution
-        nvDistance      m_wheel_diam;		    // wheel diameter
-        nvDistance      m_dist_per_tick;		// dist travelled per tick
-        nvDistance      m_base_dist;            // nominal wheel base
-        nvDistance      m_wheel_base;           // mm width of wheel base
-        float           m_lr_wheel_adjust;	    // lleft/right wheel ration adjustment
-        float           m_wheel_dist_adjust;	// wheel linear distance adjustment
-        float           m_wheel_base_adjust;	// wheel base adjustment
-		nvTime			m_min_dt;   			// minimum time delta unit
+		// settings/config                      			
+        nvPose          m_init_pose;						// starting pose
+		uint16_t		m_ticks_per_rev;					// encoder ticks per wheel revolution
+        nvDistance      m_wheel_diam;		    			// wheel diameter
+        nvDistance      m_dist_per_tick;					// dist travelled per tick
+        nvDistance      m_base_dist;            			// nominal wheel base
+        nvDistance      m_wheel_base;           			// mm width of wheel base
+		nvTime			m_min_dt;   						// minimum time delta unit
+		float			m_heading_adjust[nvNUM_ADJUSTS];	
+		float			m_dist_adjust[nvNUM_ADJUSTS];	
 
 		// state data
-        nvTime          m_last_ticks_time;		// time of last ticks update
-		nvTime			m_dt;					// current time delta
-		int16_t			m_lticks;				// current ticks
-		int16_t			m_rticks;				// current ticks
-		nvRadians		m_heading;				// current heading in radians
+        nvTime          m_last_ticks_time;					// time of last ticks update
+		nvTime			m_dt;								// current time delta
+		int16_t			m_lticks;							// current ticks
+		int16_t			m_rticks;							// current ticks
+		nvRadians		m_heading;							// current heading in radians
 
 };
 
