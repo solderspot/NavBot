@@ -6,12 +6,15 @@
 // standard arduino libs
 
 // other libs
-// Zumo motor lib: https://github.com/pololu/zumo-shield
-#include <ZumoMotors.h>
 
 // local includes
 #include "Navigator.h"
 #include "Pilot.h"
+
+
+#define ZUMO_BOT    0
+#define WALLIE_BOT  1
+
 
 //----------------------------------------
 // Serial output config
@@ -32,41 +35,6 @@
                        |NAV_INFO|TARGET_INFO \
                        |MEM_REPORT|PLT_USE_SERIAL)
 
-//----------------------------------------
-// Bot config
-//----------------------------------------
-
-// motors
-#define SWAP_MOTORS             1
-#define RMOTOR_DIR              1L    // -1 to reverse, 1 for normal
-#define LMOTOR_DIR              1L     // -1 to reverse, 1 for normal
-
-// Navigator defines
-#define WHEEL_BASE              nvMM(112.95)
-#define WHEEL_DIAMETER          nvMM(38.55)
-#define TICKS_PER_REV           1204
-#define FORWARD_HEADING_ADJUST  -0.0015f
-#define LEFT_HEADING_ADJUST    -0.0010f
-#define RIGHT_HEADING_ADJUST    0.0045f
-#define FORWARD_DIST_ADJUST     0.06f
-#define RIGHT_DIST_ADJUST       -0.285f
-// Pilot heading PID controller coefficients
-#define Kp_HEADINGS             5.0f
-#define Ki_HEADINGS             0.0f
-#define Kd_HEADINGS             0.0f
-
-// Pilot speed PID controller coefficients
-#define Kp_SPEED                0.5f
-#define Ki_SPEED                0.0f
-#define Kd_SPEED                0.0f
-
-// Pilot turn PID controller coefficients
-#define Kp_TURN                 0.5f
-#define Ki_TURN                 0.0f
-#define Kd_TURN                 0.0f
-
-#define MAX_SPEED               nvMM(100)
-
 
 //----------------------------------------
 // Defines
@@ -76,23 +44,45 @@
 #define RIGHT           0
 #define FORWARDS        1
 #define BACKWARDS      -1
+
+
+//----------------------------------------
+// Forward reference
+//----------------------------------------
+
+Pilot::TicksHandler ticks_handler;
+Pilot::MotorHandler motor_handler;
+
+//----------------------------------------
+// Instance classes
+//----------------------------------------
+
+Navigator     navigator;
+Pilot         pilot;
+
+//----------------------------------------
+// Include Bot Specific Code
+//----------------------------------------
+
+#if ZUMO_BOT
+#include <ZumoMotors.h>
+#include "ZumoBot.h"
+#endif
+
+#if WALLIE_BOT
+#include <Wire.h>
+#include <SoftwareSerial.h>
+#include <Servo.h>
+#include <PololuQik.h>
+#include "WallieBot.h"
+#endif
+
+
           
-//----------------------------------------
-// Pin Assignments
-//----------------------------------------
-
-char buttonPin  = 12;
-
 //----------------------------------------
 // Config
 //----------------------------------------
 
-// PID - use LMOTOR_GAIN to make the left motor more
-// powerful or less pwerful than the right motor.
-// Value is as a percentage, i.e. 110 means left
-// motor will be 10% faster than the right. 90
-// would mean the left motor is 10% slower
-#define LMOTOR_GAIN       100L
 bool pushToStart        = true;
 
 
@@ -111,13 +101,6 @@ enum State
 
 State state       = INIT;
 
-//----------------------------------------
-// Instance classes
-//----------------------------------------
-
-ZumoMotors    motors;
-Navigator     navigator;
-Pilot         pilot;
 
 //----------------------------------------
 // Simple Path control
@@ -169,12 +152,6 @@ int16_t turningSequence[] =
   PTH_TURN, -90,
   PTH_END 
 };
-//----------------------------------------
-// Forward reference
-//----------------------------------------
-
-Pilot::TicksHandler ticks_handler;
-Pilot::MotorHandler motor_handler;
 
 //----------------------------------------
 // setup
@@ -188,12 +165,10 @@ void setup()
   Serial.println(F("NavBot V1!"));
   #endif
   
-  pinMode(buttonPin, INPUT);
-  digitalWrite(buttonPin, HIGH);
+  pinMode(BUTTON_PIN, INPUT);
+  digitalWrite(BUTTON_PIN, HIGH);
 
-  // set up encoder
-  setup_encoder();
-
+ 
   // set up navigation
   navigator.InitEncoder( WHEEL_DIAMETER, WHEEL_BASE, TICKS_PER_REV );
   navigator.SetHeadingAdjust( nvADJUST_FORWARD, FORWARD_HEADING_ADJUST );
@@ -214,6 +189,8 @@ void setup()
   pilot.SetMinTurnSpeed( nvDEGREES(15) );
   pilot.SetMaxTurnSpeed( nvDEGREES(50) );
   pilot.SetMinServiceInterval( nvMS(10) );
+
+  init_bot();
 
   #if MEM_REPORT
   memReport();
@@ -251,7 +228,7 @@ void loop()
         init_path( squareSequence );
       #else
         //pilot.MoveBy(nvMETERS(2));
-        pilot.SpinBy(nvDEGREES(-360*5));
+        pilot.SpinBy(nvDEGREES(360*5));
       #endif
       state = RUNNING;
       break;
@@ -307,7 +284,7 @@ void handleButtonPress(void)
   static char lastButton = HIGH;
   static char count = 0;           
     
-  char button =  digitalRead( buttonPin );
+  char button =  digitalRead( BUTTON_PIN );
     
   if( (button != lastButton) )
   {
@@ -343,7 +320,7 @@ void handleButtonPress(void)
     static int16_t rTotal = 0;
     static int16_t lastlTotal = 0;
     static int16_t lastrTotal = 0;
-    bool ok = get_ticks_since_last( &lft, &rht);
+    bool ok = ticks_handler( &pilot,  &lft, &rht);
     lTotal += lft;
     rTotal += rht;
     
@@ -359,62 +336,6 @@ void handleButtonPress(void)
     }
   }
   #endif
-}
-
-//----------------------------------------
-// Motor handler
-//----------------------------------------
-
-void motor_handler( Pilot *pilot, int16_t lmotor, int16_t rmotor)
-{
- 
-  // LMotorGain is used to simulate the
-  // left motor as being more or less powerful
-  // than the right. We use this to test the PID
-  // controler. You can set LMOTOR_GAIN and
-  // see how well PID can correct the motor
-  // imbalance
-
-  int16_t lspeed = ((lmotor*400L)/1024L)*LMOTOR_DIR;
-  int16_t rspeed = ((rmotor*400L)/1024L)*RMOTOR_DIR;
-  
-  #if SWAP_MOTORS
-    motors.setLeftSpeed( lspeed );
-  #else
-    motors.setRightSpeed( lspeed );
-  #endif
-
-  #if MOTOR_INFO
-  Serial.print(F("LeftMotor: "));
-  Serial.print(lspeed);
-  Serial.print(F(" ("));
-  Serial.print(lmotor);
-  Serial.println(F(")"));
-  #endif
-
-  #if SWAP_MOTORS
-    motors.setRightSpeed( rspeed );
-  #else
-    motors.setLeftSpeed( rspeed );
-  #endif
-
-  #if MOTOR_INFO
-  Serial.print(F("RightMotor: "));
-  Serial.print(rspeed);
-  Serial.print(F(" ("));
-  Serial.print(rmotor);
-  Serial.println(F(")"));
-  #endif
- 
-}
-
-//----------------------------------------
-// Ticks handler
-//----------------------------------------
-
-bool ticks_handler( Pilot *pilot, int16_t *lticks, int16_t *rticks)
-{
-    return get_ticks_since_last( lticks, rticks );
 }
 
 //----------------------------------------
