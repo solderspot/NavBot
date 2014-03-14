@@ -22,11 +22,11 @@
 #define LMOTOR_DIR              -1L     // -1 to reverse, 1 for normal
 
 // Navigator defines
-#define WHEEL_BASE              nvMM(91.5)
+#define WHEEL_BASE              nvMM(93.4)
 #define WHEEL_DIAMETER          nvMM(42.6)
 #define TICKS_PER_REV           48
-#define FORWARD_HEADING_ADJUST  0.0f
-#define LEFT_HEADING_ADJUST     0.0f
+#define FORWARD_HEADING_ADJUST  0.0011f
+#define LEFT_HEADING_ADJUST     0.042f
 #define RIGHT_HEADING_ADJUST    0.0f
 #define FORWARD_DIST_ADJUST     0.0f
 #define RIGHT_DIST_ADJUST       0.0f
@@ -41,7 +41,7 @@
 #define Kd_SPEED                0.0f
 
 // Pilot turn PID controller coefficients
-#define Kp_TURN                 1.0f
+#define Kp_TURN                 0.5f
 #define Ki_TURN                 0.0f
 #define Kd_TURN                 0.0f
 

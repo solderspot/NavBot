@@ -24,17 +24,20 @@
 
 #define MOTOR_INFO      0
 #define BUTTON_INFO     0
-#define TEST_ENCODERS   0
 #define NAV_INFO        0
-#define USE_PATHS       1
 #define TARGET_INFO     1
 #define MEM_REPORT      0
 
-#define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
-                       |USE_PATHS|BUTTON_INFO \
-                       |NAV_INFO|TARGET_INFO \
-                       |MEM_REPORT|PLT_USE_SERIAL)
+//----------------------------------------
+// Config Logic
+//----------------------------------------
 
+#define TEST_ENCODERS     0
+#define CALIBRATE_MOVE    0
+#define CALIBRATE_TURNS   0
+
+#define CAL_DISTANCE      2      // meters
+#define CAL_TURNS         -6      // + right, - left
 
 //----------------------------------------
 // Defines
@@ -44,6 +47,12 @@
 #define RIGHT           0
 #define FORWARDS        1
 #define BACKWARDS      -1
+
+
+#define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
+                       |PLT_USE_SERIAL|BUTTON_INFO \
+                       |NAV_INFO|TARGET_INFO \
+                       |MEM_REPORT|PLT_USE_SERIAL)
 
 
 //----------------------------------------
@@ -64,6 +73,9 @@ Pilot         pilot;
 // Include Bot Specific Code
 //----------------------------------------
 
+// you must first include any header files
+// needed by the bot's code
+
 #if ZUMO_BOT
 #include <ZumoMotors.h>
 #include "ZumoBot.h"
@@ -72,7 +84,6 @@ Pilot         pilot;
 #if WALLIE_BOT
 #include <Wire.h>
 #include <SoftwareSerial.h>
-#include <Servo.h>
 #include <PololuQik.h>
 #include "WallieBot.h"
 #endif
@@ -223,12 +234,12 @@ void loop()
     case INIT:
     {
       pilot.Reset();
-      #if USE_PATHS
-        // set up path
-        init_path( squareSequence );
+      #if CALIBRATE_MOVE
+        pilot.MoveBy(nvMETERS(CAL_DISTANCE));
+      #elif CALIBRATE_TURNS
+          pilot.SpinBy(nvDEGREES(360*CAL_TURNS));
       #else
-        //pilot.MoveBy(nvMETERS(2));
-        pilot.SpinBy(nvDEGREES(360*5));
+        init_path( squareSequence );
       #endif
       state = RUNNING;
       break;
@@ -236,9 +247,7 @@ void loop()
     
     case RUNNING :
     {
-      #if USE_PATHS
-        update_path();
-      #else
+      #if CALIBRATE_MOVE || CALIBRATE_TURNS
         if( pilot.IsDone())
         {
            #if TARGET_INFO
@@ -246,6 +255,8 @@ void loop()
            #endif
            state = WAITING;
         }
+      #else
+        update_path();
       #endif
       break;
     }
