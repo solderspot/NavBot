@@ -97,7 +97,7 @@ void motor_handler( Pilot *pilot, int16_t lmotor, int16_t rmotor)
 	motors.setLeftSpeed( lspeed );
   #endif
 
-  #if MOTOR_INFO
+  #if MOTOR_INFO || TEST_MOTORS
   Serial.print(F("Motors: Left = "));
   Serial.print(lspeed);
   Serial.print(F(" ("));

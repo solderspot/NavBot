@@ -2,18 +2,33 @@
 // All rights reserved.
 // See LICENSE.txt in root folder 
 
-// include needed libraries
-// standard arduino libs
-
-// other libs
-
 // local includes
 #include "Navigator.h"
 #include "Pilot.h"
+#include "NavBot.h"
 
+// I have two bots I used this code on
+// I use these defines to specify which bot's code to use
 
 #define ZUMO_BOT    0
 #define WALLIE_BOT  1
+
+// use this define for your own bot
+#define MY_BOT      0
+
+
+//----------------------------------------
+// Config Logic
+//----------------------------------------
+
+#define TEST_ENCODERS     0     // print encoder ticks as they change
+#define TEST_MOTORS       0     // verify motor wiring
+#define SQUARE_TEST       0
+#define CALIBRATE_MOVE    0     // straight line movement
+#define CALIBRATE_TURNS   0     // turning only test
+
+#define CAL_DISTANCE      2      // meters to move for CALIBRATE_MOVE
+#define CAL_TURNS         -6     // num of turns for CALIBRATE_TURNS (+ right, - left)
 
 
 //----------------------------------------
@@ -22,59 +37,33 @@
 
 #define SERIAL_BAUD   9600
 
-#define MOTOR_INFO      0
-#define BUTTON_INFO     0
-#define NAV_INFO        0
-#define TARGET_INFO     1
-#define MEM_REPORT      0
+#define MOTOR_INFO      0       // print motor values
+#define BUTTON_INFO     0       // print button state
+#define NAV_INFO        0       // print nav data
+#define TARGET_INFO     1       // print nav data at way points
+#define MEM_REPORT      0       // print memory usage at startup
 
 //----------------------------------------
-// Config Logic
+// Your Paths
 //----------------------------------------
 
-#define TEST_ENCODERS     0
-#define CALIBRATE_MOVE    0
-#define CALIBRATE_TURNS   0
+int16_t my_path[] = 
+{
+  PTH_MOVE, 600, PTH_TURN, 180,
+  PTH_MOVE, 600, PTH_TURN, 180,
+  PTH_END 
+};
 
-#define CAL_DISTANCE      2      // meters
-#define CAL_TURNS         -6      // + right, - left
+int16_t *run_sequence = my_path; 
 
-//----------------------------------------
-// Defines
-//----------------------------------------
-
-#define LEFT            1
-#define RIGHT           0
-#define FORWARDS        1
-#define BACKWARDS      -1
-
-
-#define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
-                       |PLT_USE_SERIAL|BUTTON_INFO \
-                       |NAV_INFO|TARGET_INFO \
-                       |MEM_REPORT|PLT_USE_SERIAL)
-
-
-//----------------------------------------
-// Forward reference
-//----------------------------------------
-
-Pilot::TicksHandler ticks_handler;
-Pilot::MotorHandler motor_handler;
-
-//----------------------------------------
-// Instance classes
-//----------------------------------------
-
-Navigator     navigator;
-Pilot         pilot;
 
 //----------------------------------------
 // Include Bot Specific Code
 //----------------------------------------
 
-// you must first include any header files
-// needed by the bot's code
+// the arduino ide does not seem to allow
+// nested includes so you must first include 
+// any header files  needed by the bot's code
 
 #if ZUMO_BOT
 #include <ZumoMotors.h>
@@ -88,6 +77,10 @@ Pilot         pilot;
 #include "WallieBot.h"
 #endif
 
+#if MY_BOT
+#inlcude <...your needed header files...>
+#include "MyBot.h"
+#endif
 
           
 //----------------------------------------
@@ -128,10 +121,6 @@ int16_t *pth_sequence = NULL;
 
 PathState pth_state = PTH_DONE;
 
-#define PTH_END         0
-#define PTH_MOVE        1
-#define PTH_TURN        2
-
 int16_t squareSequence[] = 
 {
   PTH_MOVE, 600, PTH_TURN, 90, 
@@ -142,25 +131,6 @@ int16_t squareSequence[] =
   PTH_MOVE, 600, PTH_TURN, -90, 
   PTH_MOVE, 600, PTH_TURN, -90, 
   PTH_MOVE, 600, PTH_TURN, 180,
-  PTH_END 
-};
-
-int16_t backForthSequence[] = 
-{
-  PTH_MOVE, 2000,
-  PTH_MOVE, -2000,
-  PTH_END 
-};
-
-
-int16_t turningSequence[] = 
-{
-  PTH_TURN, 180,
-  PTH_TURN, -180,
-  PTH_TURN, -90,
-  PTH_TURN, -90,
-  PTH_TURN, -90,
-  PTH_TURN, -90,
   PTH_END 
 };
 
@@ -186,7 +156,6 @@ void setup()
   navigator.SetHeadingAdjust( nvADJUST_LEFT, LEFT_HEADING_ADJUST );
   navigator.SetHeadingAdjust( nvADJUST_RIGHT, RIGHT_HEADING_ADJUST );
   navigator.SetDistanceAdjust( nvADJUST_FORWARD, FORWARD_DIST_ADJUST );
-  navigator.SetDistanceAdjust( nvADJUST_RIGHT, RIGHT_DIST_ADJUST );
   // set up pilot
   pilot.SetNavigator( navigator );
   pilot.SetTimeFunction( millis );
@@ -238,8 +207,21 @@ void loop()
         pilot.MoveBy(nvMETERS(CAL_DISTANCE));
       #elif CALIBRATE_TURNS
           pilot.SpinBy(nvDEGREES(360*CAL_TURNS));
+      #elif TEST_MOTORS
+          while(1)
+          {
+            motor_handler( &pilot, 0, 256 );
+            dealy(2000);
+            motor_handler( &pilot, 256, 0 );
+            dealy(2000);
+          }
       #else
-        init_path( squareSequence );
+
+        #if SQUARE_TEST
+          init_path( squareSequence );
+        #else
+          init_path( run_sequence );
+        #endif
       #endif
       state = RUNNING;
       break;
