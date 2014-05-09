@@ -7,16 +7,6 @@
 #include "Pilot.h"
 #include "NavBot.h"
 
-// I have two bots I used this code on
-// I use these defines to specify which bot's code to use
-
-#define ZUMO_BOT    0
-#define WALLIE_BOT  1
-
-// use this define for your own bot
-#define MY_BOT      0
-
-
 //----------------------------------------
 // Config Logic
 //----------------------------------------
@@ -24,12 +14,13 @@
 #define TEST_ENCODERS     0     // print encoder ticks as they change
 #define TEST_MOTORS       0     // verify motor wiring
 #define SQUARE_TEST       0
-#define CALIBRATE_MOVE    0     // straight line movement
+#define CALIBRATE_MOVE    1     // straight line movement
 #define CALIBRATE_TURNS   0     // turning only test
 
-#define CAL_DISTANCE      2      // meters to move for CALIBRATE_MOVE
-#define CAL_TURNS         -6     // num of turns for CALIBRATE_TURNS (+ right, - left)
+#define CAL_DISTANCE      2     // meters to move for CALIBRATE_MOVE
+#define CAL_TURNS         1     // num of turns for CALIBRATE_TURNS (+ right, - left)
 
+#define SQUARE_SIZE       800   // size of square test sides in mm
 
 //----------------------------------------
 // Serial output config
@@ -49,8 +40,8 @@
 
 int16_t my_path[] = 
 {
-  PTH_MOVE, 600, PTH_TURN, 180,
-  PTH_MOVE, 600, PTH_TURN, 180,
+  PTH_MOVE, 1000, PTH_TURN, 180,
+  PTH_MOVE, 1000, PTH_TURN, 180,
   PTH_END 
 };
 
@@ -65,22 +56,24 @@ int16_t *run_sequence = my_path;
 // nested includes so you must first include 
 // any header files  needed by the bot's code
 
-#if ZUMO_BOT
-#include <ZumoMotors.h>
-#include "ZumoBot.h"
-#endif
+// ZUMO_BOT
+//#include <ZumoMotors.h>
+//#include "ZumoBot.h"
 
-#if WALLIE_BOT
+// WALLIE_BOT
+//#include <Wire.h>
+//#include <SoftwareSerial.h>
+//#include <PololuQik.h>
+//#include "WallieBot.h"
+
+// BLACK_BOT
 #include <Wire.h>
-#include <SoftwareSerial.h>
-#include <PololuQik.h>
-#include "WallieBot.h"
-#endif
+#include <Adafruit_MotorShield.h>
+#include "BlackBot.h"
 
-#if MY_BOT
-#inlcude <...your needed header files...>
-#include "MyBot.h"
-#endif
+// MY_BOT
+//#inlcude <...your needed header files...>
+//#include "MyBot.h"
 
           
 //----------------------------------------
@@ -121,18 +114,38 @@ int16_t *pth_sequence = NULL;
 
 PathState pth_state = PTH_DONE;
 
-int16_t squareSequence[] = 
+int16_t fullSquare[] = 
 {
-  PTH_MOVE, 600, PTH_TURN, 90, 
-  PTH_MOVE, 600, PTH_TURN, 90, 
-  PTH_MOVE, 600, PTH_TURN, 90, 
-  PTH_MOVE, 600, PTH_TURN, 180,
-  PTH_MOVE, 600, PTH_TURN, -90, 
-  PTH_MOVE, 600, PTH_TURN, -90, 
-  PTH_MOVE, 600, PTH_TURN, -90, 
-  PTH_MOVE, 600, PTH_TURN, 180,
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, 90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, 90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, 90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, 180,
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, -90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, -90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, -90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, 180,
   PTH_END 
 };
+
+int16_t cwSquare[] = 
+{
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, 90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, 90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, 90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, 90,
+  PTH_END 
+};
+
+int16_t ccwSquare[] = 
+{
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, -90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, -90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, -90, 
+  PTH_MOVE, SQUARE_SIZE, PTH_TURN, -90,
+  PTH_END 
+};
+
+int16_t *testPath = cwSquare;
 
 //----------------------------------------
 // setup
@@ -141,21 +154,17 @@ int16_t squareSequence[] =
 void setup() 
 {
 
-  #if USE_SERIAL
-  Serial.begin(SERIAL_BAUD);
-  Serial.println(F("NavBot V1!"));
-  #endif
   
   pinMode(BUTTON_PIN, INPUT);
   digitalWrite(BUTTON_PIN, HIGH);
 
  
   // set up navigation
-  navigator.InitEncoder( WHEEL_DIAMETER, WHEEL_BASE, TICKS_PER_REV );
-  navigator.SetHeadingAdjust( nvADJUST_FORWARD, FORWARD_HEADING_ADJUST );
-  navigator.SetHeadingAdjust( nvADJUST_LEFT, LEFT_HEADING_ADJUST );
-  navigator.SetHeadingAdjust( nvADJUST_RIGHT, RIGHT_HEADING_ADJUST );
-  navigator.SetDistanceAdjust( nvADJUST_FORWARD, FORWARD_DIST_ADJUST );
+  navigator.InitEncoder( WHEEL_DIAMETER, WHEELBASE, TICKS_PER_REV );
+  navigator.SetDistanceScaler( DISTANCE_SCALER );
+  navigator.SetWheelbaseScaler( WHEELBASE_SCALER );
+  navigator.SetWheelRLScaler( WHEEL_RL_SCALER );
+
   // set up pilot
   pilot.SetNavigator( navigator );
   pilot.SetTimeFunction( millis );
@@ -163,14 +172,18 @@ void setup()
   pilot.SetMotorHandler( motor_handler );
   pilot.SetHeadingPID( Kp_HEADINGS, Ki_HEADINGS, Kd_HEADINGS);
   pilot.SetSpeedPID( Kp_SPEED, Ki_SPEED, Kd_SPEED);
-  pilot.SetTurnPID( Kp_TURN, Ki_TURN, Kd_TURN);
+  pilot.SetWheelPID( Kp_WHEEL, Ki_WHEEL, Kd_WHEEL );
   pilot.SetMinMoveSpeed( nvMM(10));
   pilot.SetMaxMoveSpeed( MAX_SPEED );
   pilot.SetMinTurnSpeed( nvDEGREES(15) );
   pilot.SetMaxTurnSpeed( nvDEGREES(50) );
-  pilot.SetMinServiceInterval( nvMS(10) );
 
+  #if USE_SERIAL
+  Serial.begin(SERIAL_BAUD);
+  Serial.println(F("NavBot V1!"));
+  #endif
   init_bot();
+
 
   #if MEM_REPORT
   memReport();
@@ -204,21 +217,24 @@ void loop()
     {
       pilot.Reset();
       #if CALIBRATE_MOVE
+        //pilot.SetCalibrationMode( true );
         pilot.MoveBy(nvMETERS(CAL_DISTANCE));
       #elif CALIBRATE_TURNS
-          pilot.SpinBy(nvDEGREES(360*CAL_TURNS));
+        //pilot.SetCalibrationMode( true );
+        pilot.SpinBy(nvDEGREES(360*CAL_TURNS));
       #elif TEST_MOTORS
           while(1)
           {
             motor_handler( &pilot, 0, 256 );
-            dealy(2000);
+            delay(2000);
             motor_handler( &pilot, 256, 0 );
-            dealy(2000);
+            delay(2000);
           }
       #else
 
         #if SQUARE_TEST
-          init_path( squareSequence );
+          //pilot.SetCalibrationMode( true );
+          init_path( testPath );
         #else
           init_path( run_sequence );
         #endif
@@ -406,7 +422,7 @@ void pth_next()
 #if NAV_INFO 
 void outputNavInfo()
 {
-  static nvHeading lheading = nvDEGREES(1000);
+  static nvHeading lheading = nvDEGREES(SQUARE_SIZE);
   static nvRate lspeed = nvMETERS(10);
   static nvRate lturn = nvMETERS(10);
   static nvDistance lx = nvMM(0);

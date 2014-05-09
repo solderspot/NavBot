@@ -8,14 +8,31 @@
 #include "Navigator.h"
 #include <stddef.h>
 
-#define PLT_DEBUG_STATE		0
-#define PLT_DEBUG_TASK		0
-#define PLT_DEBUG_ENCODER	0
-#define PLT_MOVE_INFO		0
-#define PLT_TURN_INFO		0
+#define PLT_DEBUG_STATE             0
+#define PLT_DEBUG_TASK              0
+#define PLT_DEBUG_ENCODER           0
+#define PLT_SHOW_ERRORS             1
+#define PLT_MOVE_INFO               0
+#define PLT_TURN_INFO               0
+#define PLT_SHOW_HEADING_ADJUST     0
+#define PLT_SHOW_TURN_ADJUST        0
+#define PLT_GRAPH_WHEEL_PID         0
+#define PLT_GRAPH_SPEED_PID         0
+#define PLT_GRAPH_HEADING_PID       0
 
-#define PLT_OUTPUT_DEBUG	(PLT_DEBUG_STATE|PLT_DEBUG_TASK|PLT_DEBUG_ENCODER )
-#define PLT_USE_SERIAL		(PLT_OUTPUT_DEBUG|PLT_MOVE_INFO|PLT_TURN_INFO)
+#define PLT_OUTPUT_DEBUG            (PLT_DEBUG_STATE \
+                                    |PLT_DEBUG_TASK \
+                                    |PLT_DEBUG_ENCODER )
+
+#define PLT_USE_SERIAL              (PLT_OUTPUT_DEBUG \
+                                    |PLT_MOVE_INFO \
+                                    |PLT_TURN_INFO \
+                                    |PLT_GRAPH_WHEEL_PID \
+                                    |PLT_GRAPH_HEADING_PID \
+                                    |PLT_GRAPH_SPEED_PID \
+                                    |PLT_SHOW_ERRORS \
+                                    |PLT_SHOW_HEADING_ADJUST \
+                                    |PLT_SHOW_TURN_ADJUST)
 
 //----------------------------------------
 //
@@ -66,11 +83,11 @@ class Pilot
         void                SetMaxTurnSpeed( nvRate degrees_per_second ) { m_max_turn_speed = degrees_per_second; }
         void                SetMinTurnSpeed( nvRate degrees_per_second ) { m_min_turn_speed = degrees_per_second; }
         void                SetMinServiceInterval( nvTime interval ) { m_min_update_interval = interval; m_hPID.minDelta = m_sPID.minDelta = (float)interval; }
-        nvTime              MinUpdateInterval( void ) { return m_min_update_interval; }
+        nvTime              MinServiceInterval( void ) { return m_min_update_interval; }
         void                SetHeadingPID( float Kp, float Ki, float Kd ) { m_hPID.SetKs( Kp, Ki, Kd); }
         void                SetSpeedPID( float Kp, float Ki, float Kd ) { m_sPID.SetKs( Kp, Ki, Kd); }
-        void                SetTurnPID( float Kp, float Ki, float Kd ) { m_tPID.SetKs( Kp, Ki, Kd); }
-		void				SetTargetRadius( nvDistance radius) { m_target_radius = radius;}
+        void                SetWheelPID( float Kp, float Ki, float Kd ) { m_wPID.SetKs( Kp, Ki, Kd); }
+        void                SetTargetRadius( nvDistance radius) { m_target_radius = radius;}
 
         // methods          
         void                Reset( void );
@@ -99,7 +116,7 @@ class Pilot
         nvRate              m_min_turn_speed;
         nvRate              m_max_turn_speed;
         nvTime              m_min_update_interval;
-		nvDistance			m_target_radius;		// acceptable destination radius
+        nvDistance          m_target_radius;        // acceptable destination radius
 
         // logic states
         Task                m_task;
@@ -109,67 +126,72 @@ class Pilot
         nvHeading           m_move_heading;
         nvDistance          m_target_dist;
         nvTime              m_last_time;
-		nvTime				m_dt;
-		bool				m_end_task_on_stop;
-		uint16_t			m_encoder_errors;
+        nvTime              m_dt;
+        bool                m_end_task_on_stop;
+        uint16_t            m_encoder_errors;
 
         // motor control
         int16_t             m_mpower;
-		int16_t             m_ladjust;
-		int16_t             m_radjust;
+        int16_t             m_ladjust;
+        int16_t             m_radjust;
         int16_t             m_ldir;
         int16_t             m_rdir;
-		int16_t				m_mp_start;			// power level that motors will start movement 
-		int16_t 			m_mp_stop;			// power level at which motors will stop movement
-		bool				m_was_in_motion;	// detect start and stop of movement
-		nvDegrees			m_total_spin;
-		nvHeading			m_spin_last_heading;
+        int16_t             m_mp_start;         // power level that motors will start movement 
+        int16_t             m_mp_stop;          // power level at which motors will stop movement
+        bool                m_was_in_motion;    // detect start and stop of movement
+        nvDegrees           m_total_spin;
+        nvHeading           m_spin_last_heading;
+        int16_t             m_lticks;
+        int16_t             m_rticks;
+        int16_t             m_dlticks;
+        int16_t             m_drticks;
 
-		void				update_motors( void );
-		void				adjust_mpower( int16_t );
+
+        void                update_motors( void );
+        void                adjust_mpower( int16_t );
         void                full_stop( void );
         void                update_turn( nvDegrees dh );
         void                update_move( void );
 
 
-		// PID
-		struct PIDController
-		{
-			PIDController();
+        // PID
+        struct PIDController
+        {
+            PIDController();
 
-			float 		Kp;
-			float 		Ki;
-			float 		Kd;
-			float		sumErrs;
-			float		lastErr;
-			float		minDelta;
-			float		target;
-			float		CalcAdjustment( float input, nvTime dt );
-			void		Reset( void );
-			void		SetTarget( float t ) { target = t;}
-			void 		SetKs( float p, float i, float d ) { Kp = p; Ki = i; Kd = d; }
-		};
+            float       Kp;
+            float       Ki;
+            float       Kd;
+            float       sumErrs;
+            float       lastErr;
+            float       minDelta;
+            float       target;
+            float       CalcAdjustment( float input, nvTime dt );
+            void        Reset( nvTime mdt );
+            void        SetTarget( float t ) { target = t;}
+            void        SetKs( float p, float i, float d ) { Kp = p; Ki = i; Kd = d; }
+        };
 
-		PIDController		m_hPID;			// PID for heading control
-		PIDController		m_sPID;			// PID for speed control
-		PIDController		m_tPID;			// PID for turn control
+        PIDController       m_hPID;         // PID for heading control
+        PIDController       m_sPID;         // PID for speed control
+        PIDController       m_wPID;         // PID for wheel control
 
 
-		nvTime 				getTime( void ) { return m_time_func(); }
+        nvTime              getTime( void ) { return m_time_func(); }
 
-		// debug support
-		#if PLT_DEBUG_TASK
-		Task			m_last_task;
-		#endif
-		#if PLT_DEBUG_STATE
-		State			m_last_state;
-		#endif
-		#if PLT_DEBUG_ENCODER
-		uint16_t		m_last_encoder_errors;
-		#endif
-		#if PLT_OUTPUT_DEBUG
-		void				output_debug( void );
-		#endif 
+        // debug support
+        #if PLT_DEBUG_TASK
+        Task            m_last_task;
+        #endif
+        #if PLT_DEBUG_STATE
+        State           m_last_state;
+        #endif
+        #if PLT_DEBUG_ENCODER
+        uint16_t        m_last_encoder_errors;
+        #endif
+        #if PLT_OUTPUT_DEBUG
+        void                output_debug( void );
+        #endif 
 
 };
 

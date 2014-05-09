@@ -6,19 +6,18 @@
 // The following defines are used by the main sketch
 // 
 // Navigator defines
-#define WHEEL_BASE              nvMM(<val>)		// millimeters
-#define WHEEL_DIAMETER          nvMM(<val>)		// millimeters
+#define WHEEL_BASE              nvMM(<val>)     // millimeters
+#define WHEEL_DIAMETER          nvMM(<val>)     // millimeters
 #define TICKS_PER_REV           <val>
 
-#define BUTTON_PIN    			<val>
+#define BUTTON_PIN              <val>
 
-// adjust headings
-#define FORWARD_HEADING_ADJUST  0.0f
-#define LEFT_HEADING_ADJUST     0.0f
-#define RIGHT_HEADING_ADJUST    0.0f
+// correct for systematic errors
+#define WHEEL_RL_RATIO          1.0f
+#define WHEEL_BASE_SCALE        1.0f
 
-// adjust distances
-#define FORWARD_DIST_ADJUST     0.0f
+// correct distance 
+#define DIST_SCALE              1.0f
 
 // Pilot heading PID controller coefficients
 #define Kp_HEADINGS             5.0f
@@ -72,17 +71,17 @@ void init_bot()
 void motor_handler( Pilot *pilot, int16_t lmotor, int16_t rmotor)
 {
  
-	// convert lmotor and rmotor to your motor controller's range 
+    // convert lmotor and rmotor to your motor controller's range 
   int16_t lspeed = ((lmotor*127L)/1024L)*LMOTOR_DIR;
   int16_t rspeed = ((rmotor*127L)/1024L)*RMOTOR_DIR;
   
   // put your motor code in here  
   #if SWAP_MOTORS
     //setLeftMotor( rspeed );
-	//setRightMotor( lspeed );
+    //setRightMotor( lspeed );
   #else
-	//setLeftMotor( lspeed );
-	//setRightMotor( rspeed );
+    //setLeftMotor( lspeed );
+    //setRightMotor( rspeed );
   #endif
 
   #if MOTOR_INFO || TEST_MOTORS

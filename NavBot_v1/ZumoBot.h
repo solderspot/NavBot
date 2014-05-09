@@ -5,7 +5,7 @@
 // This is the code specific to my Zumo bot setup
 
 // Zumo motor lib: https://github.com/pololu/zumo-shield
-
+                                                                                                             
 #include <ZumoMotors.h>
 
 
@@ -19,17 +19,16 @@
 #define LMOTOR_DIR              1L     // -1 to reverse, 1 for normal
 
 // Navigator defines
-#define WHEEL_BASE              nvMM(112.95)
+#define WHEELBASE              nvMM(112.95)
 #define WHEEL_DIAMETER          nvMM(38.55)
 #define TICKS_PER_REV           1204
-#define FORWARD_HEADING_ADJUST  -0.0015f
-#define LEFT_HEADING_ADJUST    -0.0010f
-#define RIGHT_HEADING_ADJUST    0.0045f
-#define FORWARD_DIST_ADJUST     0.06f
-#define RIGHT_DIST_ADJUST       -0.285f
+#define WHEEL_RL_SCALER         1.0f // Ed
+#define WHEELBASE_SCALER        1.0f // Eb
+#define DISTANCE_SCALER         1.0f // Es
+ 
 // Pilot heading PID controller coefficients
 #define Kp_HEADINGS             5.0f
-#define Ki_HEADINGS             0.0f
+#define Ki_HEADINGS             0.1f
 #define Kd_HEADINGS             0.0f
 
 // Pilot speed PID controller coefficients
@@ -37,10 +36,10 @@
 #define Ki_SPEED                0.0f
 #define Kd_SPEED                0.0f
 
-// Pilot turn PID controller coefficients
-#define Kp_TURN                 0.5f
-#define Ki_TURN                 0.0f
-#define Kd_TURN                 0.0f
+// Pilot wheel PID controller coefficients
+#define Kp_WHEEL                0.8f
+#define Ki_WHEEL                0.1f
+#define Kd_WHEEL                0.0f
 
 #define MAX_SPEED               nvMM(100)
 
@@ -79,22 +78,15 @@ void init_bot()
 void motor_handler( Pilot *pilot, int16_t lmotor, int16_t rmotor)
 {
  
-  // LMotorGain is used to simulate the
-  // left motor as being more or less powerful
-  // than the right. We use this to test the PID
-  // controler. You can set LMOTOR_GAIN and
-  // see how well PID can correct the motor
-  // imbalance
-
   int16_t lspeed = ((lmotor*400L)/1024L)*LMOTOR_DIR;
   int16_t rspeed = ((rmotor*400L)/1024L)*RMOTOR_DIR;
   
   #if SWAP_MOTORS
     motors.setLeftSpeed( rspeed );
-	motors.setRightSpeed( lspeed );
+    motors.setRightSpeed( lspeed );
   #else
     motors.setRightSpeed( rspeed );
-	motors.setLeftSpeed( lspeed );
+    motors.setLeftSpeed( lspeed );
   #endif
 
   #if MOTOR_INFO || TEST_MOTORS
@@ -126,6 +118,11 @@ char en_rApin = 2;
 char en_rBpin = 3;
 char en_lApin = 4;
 char en_lBpin = 5; 
+
+char en_lastLA;
+char en_lastLB;
+char en_lastRA;
+char en_lastRB;
 
 //----------------------------------------
 //
@@ -208,14 +205,8 @@ void en_process( char Apin, char Bpin, char *lastA, char *lastB, volatile int16_
 
 ISR(PCINT2_vect)
 {
-
-  static char lastLA = 0;
-  static char lastLB = 0;
-  static char lastRA = 0;
-  static char lastRB = 0;
-
-  en_process(en_lApin, en_lBpin, &lastLA, &lastLB, &en_lft_ticks);
-  en_process(en_rApin, en_rBpin, &lastRA, &lastRB, &en_rht_ticks);
+    en_process(en_lApin, en_lBpin, &en_lastLA, &en_lastLB, &en_lft_ticks);
+    en_process(en_rApin, en_rBpin, &en_lastRA, &en_lastRB, &en_rht_ticks);
 }
 
 

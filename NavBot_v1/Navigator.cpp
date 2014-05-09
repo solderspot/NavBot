@@ -11,28 +11,24 @@
 //----------------------------------------
 
 Navigator::Navigator()
-:m_dist_per_tick(0),
- m_min_dt(nvMS(10))
+: m_min_dt(nvMS(10))
 {
-	m_init_pose.position.x = 0.0f;
-	m_init_pose.position.y = 0.0f;
-	m_init_pose.heading = 0.0f;
-	for (int i=0; i<nvNUM_ADJUSTS; i++)
-	{
-		m_dist_adjust[i] = m_heading_adjust[i] = 1.0f;
-	}
-	Reset(0); 
+    m_init_pose.position.x = 0.0f;
+    m_init_pose.position.y = 0.0f;
+    m_init_pose.heading = 0.0f;
+    m_dist_scaler = m_wheel_rl_scaler = m_wheelbase_scaler = 1.0f;
 }
 
 //----------------------------------------
 //
 //----------------------------------------
 
-void Navigator::InitEncoder( nvDistance wheel_diameter, nvDistance wheel_base, uint16_t ticks_per_rev )
+void Navigator::InitEncoder( nvDistance wheel_diameter, nvDistance wheelbase, uint16_t ticks_per_rev )
 {
-	m_wheel_diam = wheel_diameter;
-	m_wheel_base = wheel_base;
-	m_ticks_per_rev = ticks_per_rev;
+    m_nominal_wheel_diam = wheel_diameter;
+    m_nominal_wheelbase = wheelbase;
+    m_ticks_per_rev = ticks_per_rev;
+    Reset(0);
 }
 
 //----------------------------------------
@@ -41,16 +37,22 @@ void Navigator::InitEncoder( nvDistance wheel_diameter, nvDistance wheel_base, u
 
 void Navigator::Reset( nvTime now )
 {
+    // reset state
     m_last_ticks_time = now;
-	m_dt = 0;
-	m_lticks = m_rticks = 0;
-	m_pose = m_init_pose;
-	m_heading = nvDegToRad(m_pose.heading);
+    m_dt = 0;
+    m_lticks = m_rticks = 0;
+    m_pose = m_init_pose;
+    m_heading = nvDegToRad(m_pose.heading);
     m_speed = nvMM(0.0);
     m_turn_rate = nvDEGREES(0.0);
-    m_dist_per_tick = m_ticks_per_rev > 0 ? (m_wheel_diam*M_PI/m_ticks_per_rev) : 0.0f;
-	m_base_dist = m_wheel_base;
-    m_base_dist = m_base_dist > 1.0f ? m_base_dist : 1.0f; 
+
+    // calc odomerty terms
+    m_effective_wheelbase = m_nominal_wheelbase*m_wheelbase_scaler;
+    m_effective_wheel_diam = m_nominal_wheel_diam*m_dist_scaler;
+    float dist_per_tick = m_ticks_per_rev > 0 ? (m_effective_wheel_diam*M_PI/m_ticks_per_rev) : 0.0f;
+    float invE = 1.0f/m_wheel_rl_scaler;
+    m_rticks_to_dist = dist_per_tick*( 2.0f/(invE+1.0f));
+    m_lticks_to_dist = dist_per_tick*( 2.0f/(m_wheel_rl_scaler + 1.0f));
 }
 
 //----------------------------------------
@@ -59,56 +61,44 @@ void Navigator::Reset( nvTime now )
 
 bool Navigator::UpdateTicks( int16_t lticks, int16_t rticks, nvTime now )
 {
-	// update delta values
-	m_dt +=  nvDeltaTime( m_last_ticks_time, now );
-	m_lticks += lticks;
-	m_rticks += rticks;
+    // update delta values
+    m_dt +=  nvDeltaTime( m_last_ticks_time, now );
+    m_lticks += lticks;
+    m_rticks += rticks;
 
-	// remember time for next call
-	m_last_ticks_time = now;
+    // remember time for next call
+    m_last_ticks_time = now;
 
-	// see if we have accumulated min time delta 
-	if ( m_dt < m_min_dt )
-	{
-		// no, so wait
-		return false;
-	}
+    // see if we have accumulated min time delta 
+    if ( m_dt < m_min_dt )
+    {
+        // no, so wait
+        return false;
+    }
 
-	int type;
-	// use ticks and time delta to update position
-	if( m_lticks < 0 )
-	{
-		type = m_rticks < 0 ? nvADJUST_BACKWARD : nvADJUST_LEFT ;
-	}
-	else
-	{
-		type = m_rticks < 0 ? nvADJUST_RIGHT : nvADJUST_FORWARD ;
-	}
-
-	nvDistance dr = ((nvDistance)m_rticks)*m_dist_per_tick*m_heading_adjust[type];
-	nvDistance dl = ((nvDistance)m_lticks)*m_dist_per_tick;
-	nvDistance dd = (dr + dl)/m_dist_adjust[type]/2;
+    nvDistance sr = ((nvDistance)m_rticks)*m_rticks_to_dist;
+    nvDistance sl = ((nvDistance)m_lticks)*m_lticks_to_dist;
+    nvDistance s = (sr + sl)*0.5f;
 
     // calc and update change in heading
-    nvRadians dh = (dl - dr)/m_base_dist;
-	m_heading = nvClipRadians( m_heading + dh);
-	nvRadians xyh = nvClipRadians( m_heading + (type<=nvADJUST_BACKWARD ? dh/2 : dh));
+    nvRadians theta = (sl - sr)/m_effective_wheelbase;
+    m_heading = nvClipRadians( m_heading + theta);
 
-	// update velocities
-	m_speed = (dd*1000.0f)/m_dt;
-    m_turn_rate = (nvRadToDeg(dh)*1000.0f)/m_dt;
+    // update velocities (per sec)
+    m_speed = (s*1000.0f)/m_dt;
+    m_turn_rate = (nvRadToDeg(theta)*1000.0f)/m_dt;
 
     // update pose
-	m_pose.heading = nvRadToDeg(m_heading);
-	m_pose.position.x += dd*sin(xyh);
-	m_pose.position.y += dd*cos(xyh);
+    m_pose.heading = nvRadToDeg(m_heading);
+    m_pose.position.x += s*sin(m_heading);
+    m_pose.position.y += s*cos(m_heading);
 
         // reset delta values
-	m_dt = 0;
-	m_lticks = 0;
-	m_rticks = 0;
+    m_dt = 0;
+    m_lticks = 0;
+    m_rticks = 0;
 
-	return true;
+    return true;
 }
 
 //----------------------------------------
@@ -117,12 +107,12 @@ bool Navigator::UpdateTicks( int16_t lticks, int16_t rticks, nvTime now )
 
 nvPosition Navigator::NewPosition( nvDistance distance )
 {
-	nvPosition pos;
+    nvPosition pos;
 
-	pos.x = m_pose.position.x + distance*sin(m_heading);
-	pos.y = m_pose.position.y + distance*cos(m_heading);
+    pos.x = m_pose.position.x + distance*sin(m_heading);
+    pos.y = m_pose.position.y + distance*cos(m_heading);
 
-	return pos;
+    return pos;
 }
 
 //----------------------------------------
@@ -131,12 +121,12 @@ nvPosition Navigator::NewPosition( nvDistance distance )
 
 nvPosition Navigator::NewPosition( nvDistance x_offset, nvDistance y_offset )
 {
-	nvPosition pos;
+    nvPosition pos;
 
-	pos.x = m_pose.position.x + x_offset;
-	pos.y = m_pose.position.y + y_offset;
+    pos.x = m_pose.position.x + x_offset;
+    pos.y = m_pose.position.y + y_offset;
 
-	return pos;
+    return pos;
 }
 
 //----------------------------------------
@@ -145,12 +135,12 @@ nvPosition Navigator::NewPosition( nvDistance x_offset, nvDistance y_offset )
 
 nvPosition Navigator::NewPositionByHeading( nvPosition &pos, nvHeading heading, nvDistance distance )
 {
-	nvPosition new_pos;
-	nvRadians h = nvDegToRad(nvClipHeading(heading));
-	new_pos.x = pos.x + distance*sin(h);
-	new_pos.y = pos.y + distance*cos(h);
+    nvPosition new_pos;
+    nvRadians h = nvDegToRad(nvClipHeading(heading));
+    new_pos.x = pos.x + distance*sin(h);
+    new_pos.y = pos.y + distance*cos(h);
 
-	return new_pos;
+    return new_pos;
 }
 
 //----------------------------------------
@@ -160,25 +150,25 @@ nvPosition Navigator::NewPositionByHeading( nvPosition &pos, nvHeading heading, 
 void Navigator::GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance )
 {
 
-	nvDistance dx = pos.x - m_pose.position.x;
-	nvDistance dy = pos.y - m_pose.position.y;
+    nvDistance dx = pos.x - m_pose.position.x;
+    nvDistance dy = pos.y - m_pose.position.y;
 
-	*distance = sqrt( dx*dx + dy*dy );
-	*heading = nvClipHeading(nvRadToDeg(atan2(dx, dy)+2*M_PI));
-	#if 0
-	Serial.print("GetTo heading = ");
-	   Serial.print(pos.x);
-	   Serial.print(F(", "));
-	   Serial.print(pos.y);
-	   Serial.print(F(" from "));
-	   Serial.print(m_pose.position.x);
-	   Serial.print(F(", "));
-	   Serial.print(m_pose.position.y);
-	   Serial.print(F(" -> heading: "));
-	   Serial.print(*heading);
-	   Serial.print(F(" - dist: "));
-	   Serial.println(*distance);
-	#endif
+    *distance = sqrt( dx*dx + dy*dy );
+    *heading = nvClipHeading(nvRadToDeg(atan2(dx, dy)+2*M_PI));
+    #if 0
+    Serial.print("GetTo heading = ");
+       Serial.print(pos.x);
+       Serial.print(F(", "));
+       Serial.print(pos.y);
+       Serial.print(F(" from "));
+       Serial.print(m_pose.position.x);
+       Serial.print(F(", "));
+       Serial.print(m_pose.position.y);
+       Serial.print(F(" -> heading: "));
+       Serial.print(*heading);
+       Serial.print(F(" - dist: "));
+       Serial.println(*distance);
+    #endif
 }
 
 //----------------------------------------
@@ -187,16 +177,16 @@ void Navigator::GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance
 
 nvDegrees Navigator::HeadingAdjust( nvHeading target )
 {
-	nvDegrees adjust = nvClipDegrees(target - m_pose.heading);
-	if (adjust < -180.0f)
-	{
-		return adjust + 360.0f;
-	}
-	else if ( adjust > 180.0f )
-	{
-		return adjust - 360.0f;
-	}
-	return adjust; 
+    nvDegrees adjust = nvClipDegrees(target - m_pose.heading);
+    if (adjust < -180.0f)
+    {
+        return adjust + 360.0f;
+    }
+    else if ( adjust > 180.0f )
+    {
+        return adjust - 360.0f;
+    }
+    return adjust; 
 }
 
 
