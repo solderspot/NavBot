@@ -140,6 +140,8 @@ class Navigator
         nvDegrees       HeadingAdjust( nvHeading target ); 
         nvPosition      NewPosition( nvDistance x_offset, nvDistance y_offset );
         void            GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance );
+        nvDistance      LeftWheelTicksToMM( int16_t ticks) { return ((nvDistance)ticks)*m_lticks_to_dist;}
+        nvDistance      RightWheelTicksToMM( int16_t ticks) { return ((nvDistance)ticks)*m_rticks_to_dist;}
 
     protected:
 

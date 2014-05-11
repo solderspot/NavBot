@@ -13,11 +13,11 @@
 #define BUTTON_PIN              <val>
 
 // correct for systematic errors
-#define WHEEL_RL_RATIO          1.0f
-#define WHEEL_BASE_SCALE        1.0f
+#define WHEEL_RL_RATIO          1.0f  //Ed
+#define WHEEL_BASE_SCALE        1.0f  // Eb
 
 // correct distance 
-#define DIST_SCALE              1.0f
+#define DIST_SCALE              1.0f  //Es
 
 // Pilot heading PID controller coefficients
 #define Kp_HEADINGS             5.0f

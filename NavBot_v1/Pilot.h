@@ -14,6 +14,7 @@
 #define PLT_SHOW_ERRORS             1
 #define PLT_MOVE_INFO               0
 #define PLT_TURN_INFO               0
+#define PLT_SPEED_INFO              1
 #define PLT_SHOW_HEADING_ADJUST     0
 #define PLT_SHOW_TURN_ADJUST        0
 #define PLT_GRAPH_WHEEL_PID         0
@@ -24,15 +25,18 @@
                                     |PLT_DEBUG_TASK \
                                     |PLT_DEBUG_ENCODER )
 
+#define PLT_GRAPH_PID (PLT_GRAPH_HEADING_PID|PLT_GRAPH_SPEED_PID|PLT_GRAPH_WHEEL_PID)
+
 #define PLT_USE_SERIAL              (PLT_OUTPUT_DEBUG \
+                                    |PLT_SPEED_INFO \
                                     |PLT_MOVE_INFO \
                                     |PLT_TURN_INFO \
-                                    |PLT_GRAPH_WHEEL_PID \
-                                    |PLT_GRAPH_HEADING_PID \
-                                    |PLT_GRAPH_SPEED_PID \
+                                    |PLT_GRAPHL_PID \
                                     |PLT_SHOW_ERRORS \
                                     |PLT_SHOW_HEADING_ADJUST \
                                     |PLT_SHOW_TURN_ADJUST)
+
+#define PLT_NUM_SPEEDS_COUNTS		0
 
 //----------------------------------------
 //
@@ -146,6 +150,15 @@ class Pilot
         int16_t             m_dlticks;
         int16_t             m_drticks;
 
+		#if PLT_NUM_SPEEDS_COUNTS
+		int					m_speeds_count;
+		int 				m_next_speed_slot;
+		nvRate				m_last_speeds[PLT_NUM_SPEEDS_COUNTS];
+		nvRate				m_last_speed_rate;
+		float 				get_speed_error( nvRate target, nvRate current );
+		#else
+		float 				get_speed_error( nvRate target, nvRate current ) { return target - current; }
+		#endif
 
         void                update_motors( void );
         void                adjust_mpower( int16_t );
@@ -192,6 +205,12 @@ class Pilot
         #if PLT_OUTPUT_DEBUG
         void                output_debug( void );
         #endif 
+
+        #if PLT_GRAPH_PID
+        nvTime         m_reset_time;
+        void           pid_graph_data( nvTime now, float err, float sum, float output);
+        void           pid_graph_header( void );
+        #endif
 
 };
 

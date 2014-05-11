@@ -14,11 +14,11 @@
 #define TEST_ENCODERS     0     // print encoder ticks as they change
 #define TEST_MOTORS       0     // verify motor wiring
 #define SQUARE_TEST       0
-#define CALIBRATE_MOVE    1     // straight line movement
-#define CALIBRATE_TURNS   0     // turning only test
+#define CALIBRATE_MOVE    0     // straight line movement
+#define CALIBRATE_TURNS   1     // turning only test
 
 #define CAL_DISTANCE      2     // meters to move for CALIBRATE_MOVE
-#define CAL_TURNS         1     // num of turns for CALIBRATE_TURNS (+ right, - left)
+#define CAL_TURNS         5     // num of turns for CALIBRATE_TURNS (+ right, - left)
 
 #define SQUARE_SIZE       800   // size of square test sides in mm
 
@@ -32,7 +32,7 @@
 #define BUTTON_INFO     0       // print button state
 #define NAV_INFO        0       // print nav data
 #define TARGET_INFO     1       // print nav data at way points
-#define MEM_REPORT      0       // print memory usage at startup
+#define MEM_REPORT      1       // print memory usage at startup
 
 //----------------------------------------
 // Your Paths
@@ -176,7 +176,7 @@ void setup()
   pilot.SetMinMoveSpeed( nvMM(10));
   pilot.SetMaxMoveSpeed( MAX_SPEED );
   pilot.SetMinTurnSpeed( nvDEGREES(15) );
-  pilot.SetMaxTurnSpeed( nvDEGREES(50) );
+  pilot.SetMaxTurnSpeed( nvDEGREES(60) );
 
   #if USE_SERIAL
   Serial.begin(SERIAL_BAUD);

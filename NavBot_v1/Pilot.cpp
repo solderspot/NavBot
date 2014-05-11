@@ -6,7 +6,6 @@
 
 #include <Arduino.h>
 
-#define PLT_GRAPH_PID (PLT_GRAPH_HEADING_PID|PLT_GRAPH_SPEED_PID|PLT_GRAPH_WHEEL_PID)
 
 //----------------------------------------
 //
@@ -47,7 +46,7 @@ m_ticks_handler_data(NULL),
 m_motor_handler(NULL),
 m_motor_handler_data(NULL),
 m_max_move_speed(20.0f),
-m_max_turn_speed(30.0f),
+m_max_turn_speed(60.0f),
 m_min_update_interval(100.0f),
 m_task(PLT_TASK_DONE),
 m_state(PLT_STATE_STOPPED),
@@ -87,6 +86,9 @@ void    Pilot::Reset( void )
         Service();
     }
     m_last_time = getTime();
+    #if PLT_GRAPH_PID
+		m_reset_time = m_last_time;
+	#endif
     m_nav->Reset(m_last_time);
     m_target_heading = m_nav->Heading();
     m_target_pos = m_nav->Position();
@@ -95,6 +97,11 @@ void    Pilot::Reset( void )
     m_hPID.Reset(m_min_update_interval);
     m_wPID.Reset(m_min_update_interval);
     m_sPID.Reset(m_min_update_interval);
+    #if PLT_NUM_SPEEDS_COUNTS
+	m_speeds_count = 0;
+	m_last_speed_rate = 0;
+    #endif
+
 }
 
 //----------------------------------------
@@ -102,13 +109,15 @@ void    Pilot::Reset( void )
 //----------------------------------------
 
 #if PLT_GRAPH_PID
-static void pid_graph_header( void )
+void Pilot::pid_graph_header( void )
 {
-    Serial.println (F("err, sum, output"));
+    Serial.println (F("time, err, sum, output"));
 }
 
-static void pid_graph_data( float err, float sum, float output)
+void Pilot::pid_graph_data( nvTime now, float err, float sum, float output)
 {
+    Serial.print(now - m_reset_time);
+    Serial.print(F(", "));
     Serial.print(err);
     Serial.print(F(", "));
     Serial.print(sum);
@@ -163,13 +172,6 @@ void    Pilot::Service( void )
         output_debug();
     #endif
 
-    if ( !m_was_in_motion && m_nav->InMotion())
-    {
-        // we just started moving
-        m_mp_start = m_mpower;
-        m_was_in_motion = true;
-    }
-
     if ( m_state == PLT_STATE_STOPPING)
     {
         // stopping is a special state. we need to ignore
@@ -184,13 +186,19 @@ void    Pilot::Service( void )
         // we have actually stopped.
         m_mpower = m_ladjust = m_radjust = 0;
         update_motors();
-        m_was_in_motion = false;
         m_state = PLT_STATE_STOPPED;
         if ( m_end_task_on_stop )
         {
             m_task = PLT_TASK_DONE; 
         }
     }
+
+	if ( !m_was_in_motion && m_nav->InMotion())
+	{
+		// we just started moving
+		m_mp_start = (m_mpower*130)/100;
+		m_was_in_motion = true;
+	}
 
     switch ( m_task )
     {
@@ -227,7 +235,7 @@ void    Pilot::Service( void )
             }
             if ( m_state != PLT_STATE_SPINNING)
             {
-                #if PLT_GRAPH_WHEEL_PID
+                #if PLT_GRAPH_PID
                 pid_graph_header();
                 #endif
                 m_wPID.Reset(m_min_update_interval);
@@ -299,6 +307,38 @@ void    Pilot::Service( void )
 //
 //----------------------------------------
 
+#if PLT_NUM_SPEEDS_COUNTS
+float Pilot::get_speed_error( nvRate target, nvRate current )
+{
+	if ( m_last_speed_rate != target)
+	{
+		m_speeds_count = 0;
+		m_next_speed_slot = 0;
+		m_last_speed_rate = target;
+	}
+
+	if (m_speeds_count < (PLT_NUM_SPEEDS_COUNTS-1))
+	{
+		m_speeds_count++;
+	}
+
+	m_last_speeds[m_next_speed_slot++] = target - current;
+	m_next_speed_slot %= m_speeds_count;
+
+	float total = 0;
+	for ( int i=0; i<m_speeds_count;i++)
+	{
+		total += m_last_speeds[i];
+	}
+
+	return total/m_speeds_count;
+}
+#endif
+
+//----------------------------------------
+//
+//----------------------------------------
+
 void Pilot::update_turn( nvDegrees dh )
 {
     
@@ -334,14 +374,17 @@ void Pilot::update_turn( nvDegrees dh )
 
     if ( turning )
     {
-        // adjust for difference in wheel ticks
-        int16_t lt = m_lticks < 0 ? -m_lticks : m_lticks;
-        int16_t rt = m_rticks < 0 ? -m_rticks : m_rticks;
-        int16_t err = rt-lt;
+        // ensure wheels are turning the same distance
+        float ldist =  m_nav->LeftWheelTicksToMM( m_lticks < 0 ? -m_lticks : m_lticks );
+        float rdist =  m_nav->RightWheelTicksToMM( m_rticks < 0 ? -m_rticks : m_rticks );
+        float err = rdist-ldist;
         int16_t tadjust = m_wPID.CalcAdjustment( err, m_dt );
+		//Serial.print(ldist);
+		//Serial.print(", ");
+		//Serial.println(rdist);
 
         #if PLT_GRAPH_WHEEL_PID
-            pid_graph_data( err, m_wPID.sumErrs, tadjust);
+            pid_graph_data( m_last_time, err, m_wPID.sumErrs, tadjust);
         #endif
 
 
@@ -349,14 +392,29 @@ void Pilot::update_turn( nvDegrees dh )
         m_radjust -= tadjust;
 
         // adjust turn speed
-        nvRate max_rate = adh < 20.0f ? nvDEGREES(20) : adh < 40.0f ? nvDEGREES(30) : m_max_turn_speed;
+        nvRate max_rate = adh < 40.0f ? m_min_turn_speed : adh < 90.0f ? nvDEGREES(30) : m_max_turn_speed;
         max_rate = max_rate > m_max_turn_speed ? m_max_turn_speed : max_rate;
 
-        int16_t adjust = m_sPID.CalcAdjustment( max_rate - turning, m_dt); 
+		float speed_err = get_speed_error( max_rate, turning );
+
+		int16_t adjust = m_sPID.CalcAdjustment( speed_err, m_dt); 
 
         adjust = adjust > 100 ? 100 : adjust < -100 ? -100 : adjust;
 
+		#if PLT_GRAPH_SPEED_PID
+			pid_graph_data( m_last_time, speed_err, m_sPID.sumErrs, adjust);
+		#endif
         adjust_mpower( adjust );
+
+        #if PLT_SPEED_INFO
+        Serial.print(F("turn: "));
+        Serial.print( turning );
+        Serial.print(F(" target: "));
+        Serial.print( max_rate );
+        Serial.print(F(" mp: "));
+        Serial.println( m_mpower );
+
+        #endif
 
 
         #if PLT_SHOW_TURN_ADJUST
@@ -373,7 +431,7 @@ void Pilot::update_turn( nvDegrees dh )
     else
     {
         // start the turn
-        adjust_mpower( m_mpower == 0 && m_mp_start ? m_mp_start : 10 ); 
+        adjust_mpower( (m_mpower == 0 && m_mp_start) ? m_mp_start : 10 ); 
     }
 }
 
@@ -424,7 +482,7 @@ void Pilot::update_move( void )
             m_ladjust = (int16_t)hadj;
             m_radjust = -(int16_t)hadj;
             #if PLT_GRAPH_HEADING_PID
-                pid_graph_data( dh, m_hPID.sumErrs, hadj);
+                pid_graph_data( m_last_time, dh, m_hPID.sumErrs, hadj);
             #endif
         }
 
@@ -444,6 +502,9 @@ void Pilot::update_move( void )
         max_rate = max_rate > m_max_move_speed ? m_max_move_speed : max_rate;
 
         int16_t adjust = m_sPID.CalcAdjustment( max_rate - speed, m_dt); 
+		#if PLT_GRAPH_SPEED_PID
+			pid_graph_data( m_last_time, max_rate - speed, m_sPID.sumErrs, adjust);
+		#endif
 
         adjust = adjust > 100 ? 100 : adjust < -100 ? -100 : adjust;
 
@@ -452,7 +513,7 @@ void Pilot::update_move( void )
     else
     {
         // start the turn
-        adjust_mpower( m_mpower == 0 && m_mp_start ? m_mp_start : 10 ); 
+        adjust_mpower( (m_mpower == 0 && m_mp_start) ? m_mp_start : 10 ); 
     }
 
 }

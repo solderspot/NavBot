@@ -22,9 +22,9 @@
 #define WHEELBASE               nvMM(78.0)
 #define WHEEL_DIAMETER          nvMM(32.0)
 #define TICKS_PER_REV           909
-#define WHEEL_RL_SCALER         (1.002463028f*1.000276208f) // Dr/Dl
-#define WHEELBASE_SCALER        (0.9918532967f*0.9990412995f)   // be/bn
-#define DISTANCE_SCALER         1.004642139f
+#define WHEEL_RL_SCALER         (1.002463028f*1.000276208f)   // Ed
+#define WHEELBASE_SCALER        (0.9918532967f*0.9990412995f) // Eb
+#define DISTANCE_SCALER         1.004642139f  // Es
 
 // Pilot heading PID controller coefficients
 #define Kp_HEADINGS             5.0f
@@ -37,9 +37,9 @@
 #define Kd_SPEED                0.0f
 
 // Pilot wheel PID controller coefficients
-#define Kp_WHEEL                0.8f
-#define Ki_WHEEL                0.1f
-#define Kd_WHEEL                0.0f
+#define Kp_WHEEL                2.0f
+#define Ki_WHEEL                1.0f
+#define Kd_WHEEL                1.0f
 
 #define MAX_SPEED               nvMM(100)
 
