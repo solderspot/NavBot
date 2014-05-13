@@ -48,6 +48,9 @@ m_motor_handler_data(NULL),
 m_max_move_speed(20.0f),
 m_max_turn_speed(60.0f),
 m_min_update_interval(100.0f),
+m_dt(0),
+m_lticks(0),
+m_rticks(0),
 m_task(PLT_TASK_DONE),
 m_state(PLT_STATE_STOPPED),
 #if PLT_SHOW_TASK
@@ -164,6 +167,7 @@ void    Pilot::Service( void )
     m_lticks = m_dlticks;
     m_rticks = m_drticks;
     m_dlticks = m_drticks = 0;
+	m_heading_dt += m_dt;
 
     //Serial.print(F("Pilot::Service - m_dt = "));
     //Serial.println(m_dt);
@@ -476,7 +480,7 @@ void Pilot::update_move( void )
 
     if ( speed )
     {
-        {
+    	{
             // adjust heading
             float hadj = m_hPID.CalcAdjustment( dh, m_dt);
             m_ladjust = (int16_t)hadj;

@@ -14,8 +14,8 @@
 #define TEST_ENCODERS     0     // print encoder ticks as they change
 #define TEST_MOTORS       0     // verify motor wiring
 #define SQUARE_TEST       0
-#define CALIBRATE_MOVE    0     // straight line movement
-#define CALIBRATE_TURNS   1     // turning only test
+#define CALIBRATE_MOVE    1     // straight line movement
+#define CALIBRATE_TURNS   0     // turning only test
 
 #define CAL_DISTANCE      2     // meters to move for CALIBRATE_MOVE
 #define CAL_TURNS         5     // num of turns for CALIBRATE_TURNS (+ right, - left)
@@ -189,9 +189,8 @@ void setup()
   memReport();
   Serial.print(F("Navigator: "));
   Serial.print(sizeof(navigator));
-  Serial.print(F("bytes Pilot: "));
-  Serial.print(sizeof(pilot));
-  Serial.println(F("bytes"));
+  Serial.print(F(" Pilot: "));
+  Serial.println(sizeof(pilot));
   #endif
 }
 

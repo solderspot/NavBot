@@ -13,15 +13,15 @@
 #define BUTTON_PIN              <val>
 
 // correct for systematic errors
-#define WHEEL_RL_RATIO          1.0f  //Ed
-#define WHEEL_BASE_SCALE        1.0f  // Eb
+#define WHEEL_RL_SCALER         1.0f  // Ed
+#define WHEELBASE_SCALER        1.0f  // Eb
 
 // correct distance 
-#define DIST_SCALE              1.0f  //Es
+#define DISTANCE_SCALER         1.0f  // Es
 
 // Pilot heading PID controller coefficients
 #define Kp_HEADINGS             5.0f
-#define Ki_HEADINGS             0.0f
+#define Ki_HEADINGS             0.1f
 #define Kd_HEADINGS             0.0f
 
 // Pilot speed PID controller coefficients
@@ -29,11 +29,10 @@
 #define Ki_SPEED                0.0f
 #define Kd_SPEED                0.0f
 
-// Pilot turn PID controller coefficients
-#define Kp_TURN                 0.5f
-#define Ki_TURN                 0.0f
-#define Kd_TURN                 0.0f
-
+// Pilot wheel PID controller coefficients
+#define Kp_WHEEL                2.0f
+#define Ki_WHEEL                1.0f
+#define Kd_WHEEL                1.0f
 #define MAX_SPEED               nvMM(100)
 
 
@@ -43,8 +42,8 @@
 
 // use these to correct for incorrect motor wiring
 #define SWAP_MOTORS             0
-#define RMOTOR_DIR              1L    // -1 to reverse, 1 for normal
-#define LMOTOR_DIR              1L    // -1 to reverse, 1 for normal
+#define RMOTOR_DIR              1L    // -1L to reverse, 1L for normal
+#define LMOTOR_DIR              1L    // -1L to reverse, 1L for normal
 
 
 //----------------------------------------
@@ -106,8 +105,10 @@ void motor_handler( Pilot *pilot, int16_t lmotor, int16_t rmotor)
 bool ticks_handler( Pilot *pilot, int16_t *lft, int16_t *rht)
 {
   // read the encoders and set lft and rht
-  *lft = <left tick count>;
-  *rht = <left tick count>;
+  *lft = <left tick count since last call>;
+  *rht = <left tick count since last call>;
+
+  // return true if successful or false if there was an error
   return true;
 }
 
