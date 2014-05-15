@@ -11,11 +11,11 @@
 // Config Logic
 //----------------------------------------
 
-#define TEST_ENCODERS     0     // print encoder ticks as they change
-#define TEST_MOTORS       0     // verify motor wiring
-#define SQUARE_TEST       0
-#define CALIBRATE_MOVE    1     // straight line movement
-#define CALIBRATE_TURNS   0     // turning only test
+#define CFG_TEST_ENCODERS     0     // print encoder ticks as they change
+#define CFG_TEST_MOTORS       0     // verify motor wiring
+#define CFG_SQUARE_TEST       0
+#define CFG_CALIBRATE_MOVE    1     // straight line movement
+#define CFG_CALIBRATE_TURNS   0     // turning only test
 
 #define CAL_DISTANCE      2     // meters to move for CALIBRATE_MOVE
 #define CAL_TURNS         5     // num of turns for CALIBRATE_TURNS (+ right, - left)
@@ -32,7 +32,7 @@
 #define BUTTON_INFO     0       // print button state
 #define NAV_INFO        0       // print nav data
 #define TARGET_INFO     1       // print nav data at way points
-#define MEM_REPORT      1       // print memory usage at startup
+#define MEM_REPORT      0       // print memory usage at startup
 
 //----------------------------------------
 // Your Paths
@@ -62,14 +62,14 @@ int16_t *run_sequence = my_path;
 
 // WALLIE_BOT
 //#include <Wire.h>
-//#include <SoftwareSerial.h>
-//#include <PololuQik.h>
-//#include "WallieBot.h"
+#include <SoftwareSerial.h>
+#include <PololuQik.h>
+#include "WallieBot.h"
 
 // BLACK_BOT
-#include <Wire.h>
-#include <Adafruit_MotorShield.h>
-#include "BlackBot.h"
+//#include <Wire.h>
+//#include <Adafruit_MotorShield.h>
+//#include "BlackBot.h"
 
 // MY_BOT
 //#inlcude <...your needed header files...>
@@ -145,7 +145,16 @@ int16_t ccwSquare[] =
   PTH_END 
 };
 
-int16_t *testPath = cwSquare;
+int16_t *squarePath = cwSquare;
+
+//----------------------------------------
+// Validate Config
+//----------------------------------------
+
+#if (CFG_TEST_ENCODERS+CFG_TEST_MOTORS+CFG_SQUARE_TEST+CFG_CALIBRATE_MOVE+CFG_CALIBRATE_TURNS) > 1
+#error Only one CFG_XXX can be set to 1. The rest must be 0
+#endif
+
 
 //----------------------------------------
 // setup
@@ -170,13 +179,6 @@ void setup()
   pilot.SetTimeFunction( millis );
   pilot.SetTicksHandler( ticks_handler );
   pilot.SetMotorHandler( motor_handler );
-  pilot.SetHeadingPID( Kp_HEADINGS, Ki_HEADINGS, Kd_HEADINGS);
-  pilot.SetSpeedPID( Kp_SPEED, Ki_SPEED, Kd_SPEED);
-  pilot.SetWheelPID( Kp_WHEEL, Ki_WHEEL, Kd_WHEEL );
-  pilot.SetMinMoveSpeed( nvMM(10));
-  pilot.SetMaxMoveSpeed( MAX_SPEED );
-  pilot.SetMinTurnSpeed( nvDEGREES(15) );
-  pilot.SetMaxTurnSpeed( nvDEGREES(60) );
 
   #if USE_SERIAL
   Serial.begin(SERIAL_BAUD);
@@ -215,13 +217,13 @@ void loop()
     case INIT:
     {
       pilot.Reset();
-      #if CALIBRATE_MOVE
+      #if CFG_CALIBRATE_MOVE
         //pilot.SetCalibrationMode( true );
         pilot.MoveBy(nvMETERS(CAL_DISTANCE));
-      #elif CALIBRATE_TURNS
+      #elif CFG_CALIBRATE_TURNS
         //pilot.SetCalibrationMode( true );
         pilot.SpinBy(nvDEGREES(360*CAL_TURNS));
-      #elif TEST_MOTORS
+      #elif CFG_TEST_MOTORS
           while(1)
           {
             motor_handler( &pilot, 0, 256 );
@@ -231,9 +233,9 @@ void loop()
           }
       #else
 
-        #if SQUARE_TEST
+        #if CFG_SQUARE_TEST
           //pilot.SetCalibrationMode( true );
-          init_path( testPath );
+          init_path( squarePath );
         #else
           init_path( run_sequence );
         #endif
@@ -244,7 +246,7 @@ void loop()
     
     case RUNNING :
     {
-      #if CALIBRATE_MOVE || CALIBRATE_TURNS
+      #if CFG_CALIBRATE_MOVE || CFG_CALIBRATE_TURNS
         if( pilot.IsDone())
         {
            #if TARGET_INFO
@@ -321,7 +323,7 @@ void handleButtonPress(void)
   {
     count = 0;
   }
-  #if TEST_ENCODERS
+  #if CFG_TEST_ENCODERS
   {
     int16_t lft, rht;
     static int16_t lTotal = 0;

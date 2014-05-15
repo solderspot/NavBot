@@ -99,7 +99,6 @@ class Navigator
         bool            UpdateTicks( int16_t lticks, int16_t rticks, nvTime now );
 
    // getters
-        
         // location
         nvPose          Pose( void ) { return m_pose; }
         nvPosition      Position( void ) { return m_pose.position; }

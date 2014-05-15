@@ -14,11 +14,11 @@
 #define PTH_MOVE        1
 #define PTH_TURN        2
 
-#define USE_SERIAL    (MOTOR_INFO|TEST_ENCODERS \
+#define USE_SERIAL    (MOTOR_INFO|CFG_TEST_ENCODERS \
                        |PLT_USE_SERIAL|BUTTON_INFO \
                        |NAV_INFO|TARGET_INFO \
                        |MEM_REPORT|PLT_USE_SERIAL \
-                       |TEST_MOTORS)
+                       |CFG_TEST_MOTORS)
 
 
 //----------------------------------------

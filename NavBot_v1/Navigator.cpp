@@ -155,20 +155,6 @@ void Navigator::GetTo( nvPosition &pos, nvHeading *heading, nvDistance *distance
 
     *distance = sqrt( dx*dx + dy*dy );
     *heading = nvClipHeading(nvRadToDeg(atan2(dx, dy)+2*M_PI));
-    #if 0
-    Serial.print("GetTo heading = ");
-       Serial.print(pos.x);
-       Serial.print(F(", "));
-       Serial.print(pos.y);
-       Serial.print(F(" from "));
-       Serial.print(m_pose.position.x);
-       Serial.print(F(", "));
-       Serial.print(m_pose.position.y);
-       Serial.print(F(" -> heading: "));
-       Serial.print(*heading);
-       Serial.print(F(" - dist: "));
-       Serial.println(*distance);
-    #endif
 }
 
 //----------------------------------------

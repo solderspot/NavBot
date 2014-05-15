@@ -6,7 +6,7 @@
 // The following defines are used by the main sketch
 // 
 // Navigator defines
-#define WHEEL_BASE              nvMM(<val>)     // millimeters
+#define WHEELBASE               nvMM(<val>)     // millimeters
 #define WHEEL_DIAMETER          nvMM(<val>)     // millimeters
 #define TICKS_PER_REV           <val>
 
@@ -18,22 +18,6 @@
 
 // correct distance 
 #define DISTANCE_SCALER         1.0f  // Es
-
-// Pilot heading PID controller coefficients
-#define Kp_HEADINGS             5.0f
-#define Ki_HEADINGS             0.1f
-#define Kd_HEADINGS             0.0f
-
-// Pilot speed PID controller coefficients
-#define Kp_SPEED                0.5f
-#define Ki_SPEED                0.0f
-#define Kd_SPEED                0.0f
-
-// Pilot wheel PID controller coefficients
-#define Kp_WHEEL                2.0f
-#define Ki_WHEEL                1.0f
-#define Kd_WHEEL                1.0f
-#define MAX_SPEED               nvMM(100)
 
 
 //----------------------------------------

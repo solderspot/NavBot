@@ -19,30 +19,13 @@
 #define LMOTOR_DIR              1L     // -1 to reverse, 1 for normal
 
 // Navigator defines
-#define WHEELBASE              nvMM(112.95)
+#define WHEELBASE               nvMM(112.95)
 #define WHEEL_DIAMETER          nvMM(38.55)
 #define TICKS_PER_REV           1204
 #define WHEEL_RL_SCALER         1.0f // Ed
 #define WHEELBASE_SCALER        1.0f // Eb
 #define DISTANCE_SCALER         1.0f // Es
  
-// Pilot heading PID controller coefficients
-#define Kp_HEADINGS             5.0f
-#define Ki_HEADINGS             0.1f
-#define Kd_HEADINGS             0.0f
-
-// Pilot speed PID controller coefficients
-#define Kp_SPEED                0.5f
-#define Ki_SPEED                0.0f
-#define Kd_SPEED                0.0f
-
-// Pilot wheel PID controller coefficients
-#define Kp_WHEEL                0.8f
-#define Ki_WHEEL                0.1f
-#define Kd_WHEEL                0.0f
-
-#define MAX_SPEED               nvMM(100)
-
 //----------------------------------------
 // Pin Assignments
 //----------------------------------------
@@ -134,6 +117,12 @@ void setup_encoder()
       PCMSK2 = ((1<<PCINT21)|(1<<PCINT20)|(1<<PCINT19)|(1<<PCINT18));
       PCICR = (1<<PCIE2);
       PCIFR = 0xFF;
+	  en_lft_ticks = en_rht_ticks = 0;
+	  en_error = false;
+	  en_lastLA = (digitalRead( en_lApin ) == HIGH) ? 1 : 0;
+	  en_lastLB = (digitalRead( en_lBpin ) == HIGH) ? 1 : 0;
+	  en_lastRA = (digitalRead( en_rApin ) == HIGH) ? 1 : 0;
+	  en_lastRB = (digitalRead( en_rBpin ) == HIGH) ? 1 : 0;
   sei();
 }
 
@@ -152,18 +141,6 @@ bool ticks_handler( Pilot *pilot, int16_t *lft, int16_t *rht)
   sei();
 
   return !error;
-}
-
-//----------------------------------------
-//
-//----------------------------------------
-
-void clear_ticks()
-{
-  cli();
-  en_lft_ticks = en_rht_ticks = 0;
-  en_error = false;
-  sei();
 }
 
 //----------------------------------------

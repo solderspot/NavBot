@@ -4,10 +4,9 @@
 
 // This is the code specific to my Pololu Classic chassis bot setup
 // https://github.com/pololu/qik-arduino
-#include <Wire.h>
-#include <SoftwareSerial.h>
-#include <Servo.h>
-#include <PololuQik.h>
+//#include <Wire.h>
+//#include <SoftwareSerial.h>
+//#include <PololuQik.h>
 
 
 
@@ -29,22 +28,6 @@
 #define WHEELBASE_SCALER        1.0f // Eb
 #define DISTANCE_SCALER         1.0f // Es
 
-// Pilot heading PID controller coefficients
-#define Kp_HEADINGS             5.0f
-#define Ki_HEADINGS             0.1f
-#define Kd_HEADINGS             0.0f
-
-// Pilot speed PID controller coefficients
-#define Kp_SPEED                0.5f
-#define Ki_SPEED                0.0f
-#define Kd_SPEED                0.0f
-
-// Pilot wheel PID controller coefficients
-#define Kp_WHEEL                0.8f
-#define Ki_WHEEL                0.1f
-#define Kd_WHEEL                0.0f
-
-#define MAX_SPEED               nvMM(100)
 
 //----------------------------------------
 // Pin Assignments
@@ -86,10 +69,6 @@ void init_bot()
 
   // set up encoder
   setup_encoder();
-
-  pilot.SetMinServiceInterval( nvMS(50));
-  pilot.SetMinTurnSpeed( nvDEGREES(30) );
-  pilot.SetTargetRadius( nvMM(20));
 
 }
 
@@ -176,7 +155,14 @@ void setup_encoder( )
   TCCR2A |= (1 << WGM21);
   TCCR2B |= (1 << CS22);   
   TIMSK2 |= (1 << OCIE2A);
+  en_lft_ticks = en_rht_ticks = 0;
+  en_error = false;
+  en_lastLA = (digitalRead( en_lApin ) == HIGH) ? 1 : 0;
+  en_lastLB = (digitalRead( en_lBpin ) == HIGH) ? 1 : 0;
+  en_lastRA = (digitalRead( en_rApin ) == HIGH) ? 1 : 0;
+  en_lastRB = (digitalRead( en_rBpin ) == HIGH) ? 1 : 0;
   sei();
+
 }
 
 //----------------------------------------
@@ -192,20 +178,7 @@ bool ticks_handler( Pilot *pilot, int16_t *lft, int16_t *rht)
   char error = en_error;
   en_error = false;
   sei();
-
   return !error;
-}
-
-//----------------------------------------
-//
-//----------------------------------------
-
-void clear_ticks()
-{
-  cli();
-  en_lft_ticks = en_rht_ticks = 0;
-  en_error = false;
-  sei();
 }
 
 //----------------------------------------

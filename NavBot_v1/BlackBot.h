@@ -26,23 +26,6 @@
 #define WHEELBASE_SCALER        (0.9918532967f*0.9990412995f) // Eb
 #define DISTANCE_SCALER         1.004642139f  // Es
 
-// Pilot heading PID controller coefficients
-#define Kp_HEADINGS             5.0f
-#define Ki_HEADINGS             0.1f
-#define Kd_HEADINGS             0.0f
-
-// Pilot speed PID controller coefficients
-#define Kp_SPEED                0.5f
-#define Ki_SPEED                0.0f
-#define Kd_SPEED                0.0f
-
-// Pilot wheel PID controller coefficients
-#define Kp_WHEEL                2.0f
-#define Ki_WHEEL                1.0f
-#define Kd_WHEEL                1.0f
-
-#define MAX_SPEED               nvMM(100)
-
 //----------------------------------------
 // Pin Assignments
 //----------------------------------------
@@ -155,6 +138,12 @@ void setup_encoder()
   PCMSK2 |= ((1<<PCINT21)|(1<<PCINT20)|(1<<PCINT19)|(1<<PCINT18));
   PCICR |= (1<<PCIE2);
   PCIFR |= (1<<PCIF2);
+  en_lft_ticks = en_rht_ticks = 0;
+  en_error = false;
+  en_lastLA = (digitalRead( en_lApin ) == HIGH) ? 1 : 0;
+  en_lastLB = (digitalRead( en_lBpin ) == HIGH) ? 1 : 0;
+  en_lastRA = (digitalRead( en_rApin ) == HIGH) ? 1 : 0;
+  en_lastRB = (digitalRead( en_rBpin ) == HIGH) ? 1 : 0;
   sei();
 }
 
@@ -173,22 +162,6 @@ bool ticks_handler( Pilot *pilot, int16_t *lft, int16_t *rht)
   sei();
 
   return !error;
-}
-
-//----------------------------------------
-//
-//----------------------------------------
-
-void clear_ticks()
-{
-  cli();
-  en_lft_ticks = en_rht_ticks = 0;
-  en_error = false;
-  en_lastLA = digitalRead( en_lApin );
-  en_lastLB = digitalRead( en_lBpin );
-  en_lastRA = digitalRead( en_rApin );
-  en_lastRB = digitalRead( en_rBpin );
-  sei();
 }
 
 //----------------------------------------

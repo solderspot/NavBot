@@ -45,7 +45,9 @@ m_ticks_handler(NULL),
 m_ticks_handler_data(NULL),
 m_motor_handler(NULL),
 m_motor_handler_data(NULL),
-m_max_move_speed(20.0f),
+m_min_move_speed(10.0f),
+m_max_move_speed(100.0f),
+m_min_turn_speed(15.0f),
 m_max_turn_speed(60.0f),
 m_min_update_interval(100.0f),
 m_dt(0),
@@ -73,6 +75,9 @@ m_drticks(0),
 m_dlticks(0),
 m_was_in_motion(false)
 {
+	SetHeadingPID( 5.0f, 0.1f, 0.0f );
+	SetSpeedPID( 0.5f, 0.0f, 0.0f );
+	SetWheelPID( 2.0f, 1.0f, 1.0f );
 }
 
 //----------------------------------------
@@ -167,7 +172,6 @@ void    Pilot::Service( void )
     m_lticks = m_dlticks;
     m_rticks = m_drticks;
     m_dlticks = m_drticks = 0;
-	m_heading_dt += m_dt;
 
     //Serial.print(F("Pilot::Service - m_dt = "));
     //Serial.println(m_dt);
