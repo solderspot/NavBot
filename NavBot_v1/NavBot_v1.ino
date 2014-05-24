@@ -62,14 +62,14 @@ int16_t *run_sequence = my_path;
 
 // WALLIE_BOT
 //#include <Wire.h>
-#include <SoftwareSerial.h>
-#include <PololuQik.h>
-#include "WallieBot.h"
+//#include <SoftwareSerial.h>
+//#include <PololuQik.h>
+//#include "WallieBot.h"
 
 // BLACK_BOT
-//#include <Wire.h>
-//#include <Adafruit_MotorShield.h>
-//#include "BlackBot.h"
+#include <Wire.h>
+#include <Adafruit_MotorShield.h>
+#include "BlackBot.h"
 
 // MY_BOT
 //#inlcude <...your needed header files...>

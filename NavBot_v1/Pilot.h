@@ -19,7 +19,7 @@
 #define PLT_SHOW_TURN_ADJUST        0
 #define PLT_GRAPH_WHEEL_PID         0
 #define PLT_GRAPH_SPEED_PID         0
-#define PLT_GRAPH_HEADING_PID       1
+#define PLT_GRAPH_HEADING_PID       0
 
 #define PLT_OUTPUT_DEBUG            (PLT_DEBUG_STATE \
                                     |PLT_DEBUG_TASK \

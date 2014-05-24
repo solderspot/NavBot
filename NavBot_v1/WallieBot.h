@@ -67,6 +67,8 @@ void init_bot()
     Serial.println();
     #endif
 
+	pilot.SetTargetRadius( nvMM(20));
+
   // set up encoder
   setup_encoder();
 
